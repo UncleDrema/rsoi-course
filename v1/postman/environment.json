@@ -1,0 +1,39 @@
+{
+	"id": "acc90f86-88ad-444e-924e-6f48f6ee7711",
+	"name": "[rsoi][lab5] Flight Service",
+	"values": [
+		{
+			"key": "serviceUrl",
+			"value": "http://130.193.57.16.nip.io",
+			"enabled": true
+		},
+		{
+			"key": "identityProviderUrl",
+			"value": "https://uncledrema.us.auth0.com",
+			"enabled": true
+		},
+		{
+			"key": "username",
+			"value": "test@example.com",
+			"enabled": true
+		},
+		{
+			"key": "password",
+			"value": "test1234!",
+			"enabled": true
+		},
+		{
+			"key": "clientId",
+			"value": "d096zvCsANQ4acmwCAduxoY0AkvzGgcv",
+			"enabled": true
+		},
+		{
+			"key": "clientSecret",
+			"value": "9M4yZO_GGbpe9_RIOEXeRyxVtNHzayZOwJ1XNN0rz35ziAPK8B5r2C6o_MSD_QFN",
+			"enabled": true
+		}
+	],
+	"_postman_variable_scope": "environment",
+	"_postman_exported_at": "2021-10-15T18:17:23.977Z",
+	"_postman_exported_using": "Postman/9.0.5"
+}

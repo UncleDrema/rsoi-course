@@ -1,0 +1,19 @@
+server:
+  port: 8060
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://uncledrema.us.auth0.com/
+  application:
+    name: flights
+  datasource:
+    url: jdbc:postgresql://localhost:5432/flights
+    username: program
+    password: test
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    generate-ddl: true
+    hibernate:
+      ddl-auto: update

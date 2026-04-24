@@ -22,6 +22,9 @@ jobs:
           java-version: "25"
           cache: "gradle"
 
+      - name: Make Gradle wrapper executable
+        run: chmod +x services/*/gradlew
+
       - name: Install Yandex Cloud CLI
         run: |
           curl https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
@@ -165,25 +168,3 @@ jobs:
           environment: v1/postman/environment.json
           delayRequest: 100
           reporters: '[ "cli" ]'
-
-      # - uses: education/autograding@v1
-      #   id: autograder
-      #   continue-on-error: true
-#      - uses: docker/setup-buildx-action@v2
-
-# TODO build and run unit tests
-
-#      - name: Build images
-#        timeout-minutes: 10
-#        run: docker compose build --push
-
-# TODO deploy to k8s with liveness and readyness probes
-
-#      - name: Wait before services are ready
-#        run: kubectl wait -n test -l app.kubernetes.io/name=gateway pod --for=condition=Ready --timeout 3m
-
-# TODO setup parameters in classroom/autograding.json
-
-#      - name: Autograding
-#        uses: education/autograding@v1
-#        continue-on-error: true

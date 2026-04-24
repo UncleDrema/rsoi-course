@@ -45,7 +45,7 @@ jobs:
       - name: Configure kubectl for Yandex Cloud
         env:
           YC_OAUTH_TOKEN: ${{ secrets.YC_OAUTH_TOKEN }}
-          YC_CLUSTER_ID: catq2lo9dmaukeknlhqq
+          YC_CLUSTER_ID: catt2f1j3e9rt0uam2q4
           YC_FOLDER_ID: b1ga2j4c24npsduq8nbl
         run: |
           yc container cluster get-credentials "$YC_CLUSTER_ID" --external --force --folder-id "$YC_FOLDER_ID"

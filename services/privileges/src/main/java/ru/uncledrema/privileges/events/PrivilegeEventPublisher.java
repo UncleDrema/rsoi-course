@@ -1,7 +1,7 @@
 package ru.uncledrema.privileges.events;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import ru.uncledrema.privileges.types.Privilege;
@@ -15,27 +15,27 @@ import java.util.UUID;
 @Slf4j
 @Component
 public class PrivilegeEventPublisher {
-    private final KafkaTemplate<String, ActionEventDto> kafkaTemplate;
+    private final ObjectProvider<KafkaTemplate<String, ActionEventDto>> kafkaTemplateProvider;
     private final CurrentActorProvider currentActorProvider;
-    private final boolean enabled;
-    private final String topic;
-    private final String serviceName;
+    private final PrivilegeEventsProperties properties;
 
     public PrivilegeEventPublisher(
-            KafkaTemplate<String, ActionEventDto> kafkaTemplate,
+            ObjectProvider<KafkaTemplate<String, ActionEventDto>> kafkaTemplateProvider,
             CurrentActorProvider currentActorProvider,
-            @Value("${privileges.events.enabled:true}") boolean enabled,
-            @Value("${privileges.events.topic:rsoi.actions}") String topic,
-            @Value("${spring.application.name:privileges}") String serviceName) {
-        this.kafkaTemplate = kafkaTemplate;
+            PrivilegeEventsProperties properties) {
+        this.kafkaTemplateProvider = kafkaTemplateProvider;
         this.currentActorProvider = currentActorProvider;
-        this.enabled = enabled;
-        this.topic = topic;
-        this.serviceName = serviceName;
+        this.properties = properties;
     }
 
     public void publish(String eventType, Privilege privilege, PrivilegeHistory historyEntry) {
-        if (!enabled || historyEntry == null) {
+        if (!properties.enabled() || historyEntry == null) {
+            return;
+        }
+
+        KafkaTemplate<String, ActionEventDto> kafkaTemplate = kafkaTemplateProvider.getIfAvailable();
+        if (kafkaTemplate == null) {
+            log.warn("Skipping privilege event {} because KafkaTemplate is not configured", eventType);
             return;
         }
 
@@ -54,7 +54,7 @@ public class PrivilegeEventPublisher {
         ActionEventDto event = new ActionEventDto(
                 UUID.randomUUID(),
                 eventType,
-                serviceName,
+                properties.service(),
                 actor != null ? actor.subject() : null,
                 actor != null ? actor.username() : null,
                 actor != null ? actor.roles() : java.util.List.of(),
@@ -65,7 +65,7 @@ public class PrivilegeEventPublisher {
         );
 
         try {
-            kafkaTemplate.send(topic, event.entityId(), event);
+            kafkaTemplate.send(properties.topic(), event.entityId(), event);
         } catch (Exception exception) {
             log.warn("Failed to publish privilege event {}", event.eventType(), exception);
         }

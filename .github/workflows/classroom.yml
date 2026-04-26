@@ -69,23 +69,25 @@ jobs:
             fi
           }
 
-          set_flag frontend_code '^(frontend/spa/|\.github/workflows/classroom\.yml$)'
-          set_flag flights_code '^(services/flights/|\.github/workflows/classroom\.yml$)'
-          set_flag tickets_code '^(services/tickets/|\.github/workflows/classroom\.yml$)'
-          set_flag privileges_code '^(services/privileges/|\.github/workflows/classroom\.yml$)'
-          set_flag gateway_code '^(services/gateway/|\.github/workflows/classroom\.yml$)'
-          set_flag identity_provider_code '^(services/identity-provider/|\.github/workflows/classroom\.yml$)'
-          set_flag statistics_code '^(services/statistics/|\.github/workflows/classroom\.yml$)'
-          set_flag infra_deploy '^(charts/postgres/|charts/redpanda/|\.github/workflows/classroom\.yml$)'
+          set_flag frontend_code '^frontend/spa/'
+          set_flag flights_code '^services/flights/'
+          set_flag tickets_code '^services/tickets/'
+          set_flag privileges_code '^services/privileges/'
+          set_flag gateway_code '^services/gateway/'
+          set_flag identity_provider_code '^services/identity-provider/'
+          set_flag statistics_code '^services/statistics/'
+          set_flag infra_deploy '^(charts/postgres/|charts/redpanda/)'
 
-          RSOI_COMMON='^(charts/rsoi/templates/|charts/rsoi/Chart.yaml|charts/rsoi/README.md|charts/rsoi/\.helmignore|\.github/workflows/classroom\.yml$)'
-          set_flag frontend_deploy "^(frontend/spa/|charts/rsoi/values-frontend.yaml|$RSOI_COMMON)"
-          set_flag flights_deploy "^(services/flights/|charts/rsoi/values-flights.yaml|$RSOI_COMMON)"
-          set_flag tickets_deploy "^(services/tickets/|charts/rsoi/values-tickets.yaml|$RSOI_COMMON)"
-          set_flag privileges_deploy "^(services/privileges/|charts/rsoi/values-privileges.yaml|$RSOI_COMMON)"
-          set_flag gateway_deploy "^(services/gateway/|charts/rsoi/values-gateway.yaml|$RSOI_COMMON)"
-          set_flag identity_provider_deploy "^(services/identity-provider/|charts/rsoi/values-identity-provider.yaml|$RSOI_COMMON)"
-          set_flag statistics_deploy "^(services/statistics/|charts/rsoi/values-statistics.yaml|$RSOI_COMMON)"
+          set_flag frontend_deploy '^(frontend/spa/|charts/rsoi/values-frontend.yaml|charts/rsoi/(templates/|Chart.yaml|README.md|\.helmignore))'
+          set_flag flights_deploy '^(services/flights/|charts/rsoi/values-flights.yaml|charts/rsoi/(templates/|Chart.yaml|README.md|\.helmignore))'
+          set_flag tickets_deploy '^(services/tickets/|charts/rsoi/values-tickets.yaml|charts/rsoi/(templates/|Chart.yaml|README.md|\.helmignore))'
+          set_flag privileges_deploy '^(services/privileges/|charts/rsoi/values-privileges.yaml|charts/rsoi/(templates/|Chart.yaml|README.md|\.helmignore))'
+          set_flag gateway_deploy '^(services/gateway/|charts/rsoi/values-gateway.yaml|charts/rsoi/(templates/|Chart.yaml|README.md|\.helmignore))'
+          set_flag identity_provider_deploy '^(services/identity-provider/|charts/rsoi/values-identity-provider.yaml|charts/rsoi/(templates/|Chart.yaml|README.md|\.helmignore))'
+          set_flag statistics_deploy '^(services/statistics/|charts/rsoi/values-statistics.yaml|charts/rsoi/(templates/|Chart.yaml|README.md|\.helmignore))'
+
+          echo "Detected changes:"
+          cat /tmp/changed-files.txt
 
       - name: Install Yandex Cloud CLI
         run: |

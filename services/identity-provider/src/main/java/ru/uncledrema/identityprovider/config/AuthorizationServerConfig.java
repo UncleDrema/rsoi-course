@@ -8,16 +8,26 @@ import com.nimbusds.jose.proc.SecurityContext;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames;
+import org.springframework.security.oauth2.core.oidc.OidcScopes;
+import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
+import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
+import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 import ru.uncledrema.identityprovider.services.IdentityUserService;
 import ru.uncledrema.identityprovider.types.IdentityUser;
 
+import java.time.Duration;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -54,6 +64,38 @@ public class AuthorizationServerConfig {
         return AuthorizationServerSettings.builder()
                 .issuer(properties.getIssuer())
                 .build();
+    }
+
+    @Bean
+    public RegisteredClientRepository registeredClientRepository(
+            @Value("${IDENTITY_PROVIDER_PUBLIC_CLIENT_ID:spa-client}") String publicClientId,
+            @Value("${IDENTITY_PROVIDER_PUBLIC_REDIRECT_URI_1:http://127.0.0.1:3000/auth/callback}") String redirectUri1,
+            @Value("${IDENTITY_PROVIDER_PUBLIC_REDIRECT_URI_2:http://localhost:3000/auth/callback}") String redirectUri2,
+            @Value("${IDENTITY_PROVIDER_PUBLIC_POST_LOGOUT_REDIRECT_URI_1:http://127.0.0.1:3000/login}") String postLogoutRedirectUri1,
+            @Value("${IDENTITY_PROVIDER_PUBLIC_POST_LOGOUT_REDIRECT_URI_2:http://localhost:3000/login}") String postLogoutRedirectUri2,
+            @Value("${IDENTITY_PROVIDER_ACCESS_TOKEN_TTL:PT1H}") Duration accessTokenTimeToLive
+    ) {
+        RegisteredClient publicSpa = RegisteredClient.withId("public-spa")
+                .clientId(publicClientId)
+                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .redirectUri(redirectUri1)
+                .redirectUri(redirectUri2)
+                .postLogoutRedirectUri(postLogoutRedirectUri1)
+                .postLogoutRedirectUri(postLogoutRedirectUri2)
+                .scope(OidcScopes.OPENID)
+                .scope(OidcScopes.PROFILE)
+                .scope(OidcScopes.EMAIL)
+                .clientSettings(ClientSettings.builder()
+                        .requireAuthorizationConsent(true)
+                        .requireProofKey(true)
+                        .build())
+                .tokenSettings(TokenSettings.builder()
+                        .accessTokenTimeToLive(accessTokenTimeToLive)
+                        .build())
+                .build();
+
+        return new InMemoryRegisteredClientRepository(publicSpa);
     }
 
     @Bean

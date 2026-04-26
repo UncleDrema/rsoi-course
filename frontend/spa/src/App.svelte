@@ -6,7 +6,10 @@
   import {
     buyTicket,
     cancelTicket,
+    createAirport,
     createAdminUser,
+    createFlight,
+    getAirports,
     getAdminUsers,
     getFlights,
     getPrivilege,
@@ -19,6 +22,9 @@
   import type {
     AdminCreateUserInput,
     AdminUser,
+    Airport,
+    CreateAirportInput,
+    CreateFlightInput,
     PageDto,
     Flight,
     PrivilegeInfo,
@@ -33,6 +39,7 @@
   import TicketsPage from "./routes/TicketsPage.svelte";
   import ProfilePage from "./routes/ProfilePage.svelte";
   import AdminUsersPage from "./routes/AdminUsersPage.svelte";
+  import AdminFlightsPage from "./routes/AdminFlightsPage.svelte";
   import AdminStatisticsPage from "./routes/AdminStatisticsPage.svelte";
 
   let flights: PageDto<Flight> | null = null;
@@ -57,6 +64,13 @@
   let adminUsersSaving = false;
   let adminUsersError: string | null = null;
 
+  let adminAirports: Airport[] = [];
+  let adminFlights: Flight[] = [];
+  let adminFlightsLoading = false;
+  let airportSaving = false;
+  let flightSaving = false;
+  let adminFlightsError: string | null = null;
+
   let statisticsReport: StatisticsReport | null = null;
   let statisticEvents: StatisticEvent[] = [];
   let statisticsLoading = false;
@@ -69,6 +83,7 @@
     "/tickets",
     "/profile",
     "/admin/users",
+    "/admin/flights",
     "/admin/statistics"
   ];
 
@@ -120,6 +135,11 @@
       case "/admin/users":
         if (!adminUsers.length && !adminUsersLoading) {
           await loadAdminUsers();
+        }
+        break;
+      case "/admin/flights":
+        if (!adminAirports.length && !adminFlightsLoading) {
+          await loadAdminFlights();
         }
         break;
       case "/admin/statistics":
@@ -193,6 +213,20 @@
     }
   }
 
+  async function loadAdminFlights(): Promise<void> {
+    adminFlightsLoading = true;
+    adminFlightsError = null;
+    try {
+      const [airports, flightPageData] = await Promise.all([getAirports(), getFlights(1, 20)]);
+      adminAirports = airports.items;
+      adminFlights = flightPageData.items;
+    } catch (error) {
+      adminFlightsError = error instanceof Error ? error.message : "Unable to load flight administration data.";
+    } finally {
+      adminFlightsLoading = false;
+    }
+  }
+
   async function loadStatistics(): Promise<void> {
     statisticsLoading = true;
     statisticsError = null;
@@ -247,6 +281,33 @@
     }
   }
 
+  async function handleCreateAirport(event: CustomEvent<CreateAirportInput>): Promise<void> {
+    airportSaving = true;
+    adminFlightsError = null;
+    try {
+      const created = await createAirport(event.detail);
+      adminAirports = [created, ...adminAirports];
+    } catch (error) {
+      adminFlightsError = error instanceof Error ? error.message : "Unable to create airport.";
+    } finally {
+      airportSaving = false;
+    }
+  }
+
+  async function handleCreateFlight(event: CustomEvent<CreateFlightInput>): Promise<void> {
+    flightSaving = true;
+    adminFlightsError = null;
+    try {
+      const created = await createFlight(event.detail);
+      adminFlights = [created, ...adminFlights];
+      flights = null;
+    } catch (error) {
+      adminFlightsError = error instanceof Error ? error.message : "Unable to create flight.";
+    } finally {
+      flightSaving = false;
+    }
+  }
+
   function handleNavigate(event: CustomEvent<RoutePath>): void {
     navigate(event.detail);
   }
@@ -297,6 +358,18 @@
         saving={adminUsersSaving}
         error={adminUsersError}
         on:create={handleCreateUser}
+      />
+    {:else if currentRoute === "/admin/flights"}
+      <AdminFlightsPage
+        airports={adminAirports}
+        flights={adminFlights}
+        loading={adminFlightsLoading}
+        savingAirport={airportSaving}
+        savingFlight={flightSaving}
+        error={adminFlightsError}
+        on:refresh={loadAdminFlights}
+        on:createAirport={handleCreateAirport}
+        on:createFlight={handleCreateFlight}
       />
     {:else if currentRoute === "/admin/statistics"}
       <AdminStatisticsPage

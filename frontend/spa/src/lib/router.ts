@@ -8,6 +8,7 @@ export type RoutePath =
   | "/tickets"
   | "/profile"
   | "/admin/users"
+  | "/admin/flights"
   | "/admin/statistics";
 
 export const route = writable<RoutePath>(getRoute(window.location.pathname));
@@ -21,6 +22,7 @@ function getRoute(pathname: string): RoutePath {
     case "/tickets":
     case "/profile":
     case "/admin/users":
+    case "/admin/flights":
     case "/admin/statistics":
       return pathname;
     default:

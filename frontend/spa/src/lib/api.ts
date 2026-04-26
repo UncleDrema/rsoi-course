@@ -3,8 +3,11 @@ import { getAccessToken } from "./auth";
 import type {
   AdminCreateUserInput,
   AdminUser,
+  Airport,
   ApiErrorPayload,
   BoughtTicket,
+  CreateAirportInput,
+  CreateFlightInput,
   Flight,
   PageDto,
   PrivilegeInfo,
@@ -54,6 +57,24 @@ async function parseJson<T>(response: Response): Promise<T | null> {
 
 export function getFlights(page = 1, size = 12): Promise<PageDto<Flight>> {
   return apiFetch<PageDto<Flight>>(`/flights?page=${page}&size=${size}`);
+}
+
+export function getAirports(page = 1, size = 100): Promise<PageDto<Airport>> {
+  return apiFetch<PageDto<Airport>>(`/airports?page=${page}&size=${size}`);
+}
+
+export function createAirport(payload: CreateAirportInput): Promise<Airport> {
+  return apiFetch<Airport>("/airports", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function createFlight(payload: CreateFlightInput): Promise<Flight> {
+  return apiFetch<Flight>("/flights", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }
 
 export function buyTicket(payload: { flightNumber: string; price: number; paidFromBalance: boolean }): Promise<BoughtTicket> {

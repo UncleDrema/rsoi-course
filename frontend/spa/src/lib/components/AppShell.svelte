@@ -17,6 +17,7 @@
     { label: "Tickets", path: "/tickets" },
     { label: "Profile", path: "/profile" },
     { label: "Users", path: "/admin/users" },
+    { label: "Manage flights", path: "/admin/flights" },
     { label: "Statistics", path: "/admin/statistics" }
   ];
 

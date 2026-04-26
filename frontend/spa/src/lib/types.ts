@@ -13,6 +13,27 @@ export interface Flight {
   price: number;
 }
 
+export interface Airport {
+  id: number;
+  name: string;
+  city: string;
+  country: string;
+}
+
+export interface CreateAirportInput {
+  name: string;
+  city: string;
+  country: string;
+}
+
+export interface CreateFlightInput {
+  flightNumber: string;
+  datetime: string;
+  fromAirportId: number;
+  toAirportId: number;
+  price: number;
+}
+
 export interface PrivilegeShortInfo {
   balance: number | null;
   status: string | null;

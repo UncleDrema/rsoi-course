@@ -30,7 +30,7 @@ service:
     gwin.yandex.cloud/targets.type: Node
 
 auth:
-  issuerUri: "http://idp.81.26.187.28.nip.io"
+  issuerUri: "https://idp.81.26.187.28.nip.io"
 
 env:
   - name: SERVER_PORT
@@ -48,11 +48,11 @@ env:
   - name: IDENTITY_PROVIDER_ISSUER
     value: "{{ .Values.auth.issuerUri }}"
   - name: IDENTITY_PROVIDER_PUBLIC_REDIRECT_URI_1
-    value: "http://81.26.187.28.nip.io/auth/callback"
+    value: "https://81.26.187.28.nip.io/auth/callback"
   - name: IDENTITY_PROVIDER_PUBLIC_REDIRECT_URI_2
-    value: "http://81.26.187.28.nip.io/auth/callback"
+    value: "https://81.26.187.28.nip.io/auth/callback"
   - name: IDENTITY_PROVIDER_CORS_ALLOWED_ORIGINS
-    value: "http://81.26.187.28.nip.io"
+    value: "https://81.26.187.28.nip.io"
 
 ingress:
   enabled: true
@@ -65,7 +65,10 @@ ingress:
       paths:
         - path: /
           pathType: Prefix
-  tls: []
+  tls:
+    - hosts:
+        - idp.81.26.187.28.nip.io
+      secretName: yc-certmgr-cert-id-fpqpgeqbp2irtdnf11it
 
 resources: {}
 

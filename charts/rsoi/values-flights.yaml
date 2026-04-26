@@ -28,7 +28,7 @@ service:
   name: http
 
 auth:
-  issuerUri: "http://idp.81.26.187.28.nip.io"
+  issuerUri: "https://idp.81.26.187.28.nip.io"
 
 env:
   - name: SERVER_PORT

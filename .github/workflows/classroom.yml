@@ -69,7 +69,7 @@ jobs:
             fi
           }
 
-          set_flag frontend_code '^frontend/spa/'
+          set_flag frontend_code '^(frontend/spa/|charts/rsoi/values-frontend.yaml)'
           set_flag flights_code '^services/flights/'
           set_flag tickets_code '^services/tickets/'
           set_flag privileges_code '^services/privileges/'

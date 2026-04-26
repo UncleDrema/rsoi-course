@@ -30,7 +30,7 @@ service:
     gwin.yandex.cloud/targets.type: Node
 
 auth:
-  issuerUri: "http://idp.81.26.187.28.nip.io"
+  issuerUri: "https://idp.81.26.187.28.nip.io"
 
 env:
   - name: VITE_OIDC_AUTHORITY
@@ -51,7 +51,10 @@ ingress:
       paths:
         - path: /
           pathType: Prefix
-  tls: []
+  tls:
+    - hosts:
+        - 81.26.187.28.nip.io
+      secretName: yc-certmgr-cert-id-fpqpgeqbp2irtdnf11it
 
 resources: {}
 

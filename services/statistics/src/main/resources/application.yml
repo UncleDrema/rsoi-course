@@ -21,6 +21,9 @@ spring:
     bootstrap-servers: ${STATISTICS_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
       group-id: ${STATISTICS_KAFKA_GROUP_ID:statistics-service}
+      auto-offset-reset: ${STATISTICS_KAFKA_AUTO_OFFSET_RESET:earliest}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 statistics:
   kafka:
     topic: ${STATISTICS_KAFKA_TOPIC:rsoi.actions}

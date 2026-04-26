@@ -23,7 +23,7 @@
     {/if}
 
     <button class="primary-button auth-button" type="button" disabled={loading} on:click={handleLogin}>
-      {loading ? "Redirecting..." : "Sign in with OIDC"}
+      {loading ? "Redirecting..." : "Sign in with Identity Provider"}
     </button>
   </div>
 </section>

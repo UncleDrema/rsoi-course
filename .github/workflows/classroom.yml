@@ -13,6 +13,7 @@ env:
   YC_FOLDER_ID: b1ga2j4c24npsduq8nbl
   YC_CLUSTER_ID: catt2f1j3e9rt0uam2q4
   KUBE_NAMESPACE: rsoi
+  BP_JVM_VERSION: "25"
 
 jobs:
   build:

@@ -57,7 +57,7 @@ ingress:
   className: "gwin-default"
   annotations:
     gwin.yandex.cloud/groupName: rsoi
-    gwin.yandex.cloud/externalIPv4Address: 81.26.187.28
+    gwin.yandex.cloud/externalIPv4Address: auto
   hosts:
     - host: idp.81.26.187.28.nip.io
       paths:

@@ -1,0 +1,53 @@
+{{- if and .Values.topicProvisioning.enabled .Values.topicProvisioning.topics }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "redpanda.fullname" . }}-topic-provisioning
+  labels:
+    {{- include "redpanda.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        {{- include "redpanda.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: topic-provisioner
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              BROKERS="{{ include "redpanda.fullname" . }}:{{ .Values.service.kafkaPort }}"
+              RETRIES={{ .Values.topicProvisioning.retries }}
+              DELAY={{ .Values.topicProvisioning.retryDelaySeconds }}
+
+              i=1
+              until rpk cluster info -X brokers="$BROKERS" >/dev/null 2>&1; do
+                if [ "$i" -ge "$RETRIES" ]; then
+                  echo "Redpanda is not ready after $RETRIES attempts"
+                  exit 1
+                fi
+                echo "Waiting for Redpanda ($i/$RETRIES)..."
+                i=$((i + 1))
+                sleep "$DELAY"
+              done
+
+{{- range .Values.topicProvisioning.topics }}
+              if rpk topic describe {{ .name | quote }} -X brokers="$BROKERS" >/dev/null 2>&1; then
+                echo "Topic {{ .name }} already exists"
+              else
+                echo "Creating topic {{ .name }}"
+                rpk topic create {{ .name | quote }} \
+                  -X brokers="$BROKERS" \
+                  --partitions {{ .partitions }} \
+                  --replicas {{ .replicas }}
+              fi
+{{- end }}
+{{- end }}

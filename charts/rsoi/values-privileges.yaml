@@ -45,6 +45,8 @@ env:
     value: "{{ .Values.auth.issuerUri }}"
   - name: PRIVILEGES_KAFKA_BOOTSTRAP_SERVERS
     value: "redpanda:9092"
+  - name: PRIVILEGES_EVENTS_ENABLED
+    value: "true"
   - name: PRIVILEGES_EVENTS_TOPIC
     value: "rsoi.actions"
 

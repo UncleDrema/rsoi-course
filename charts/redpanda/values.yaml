@@ -46,3 +46,12 @@ resources: {}
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+topicProvisioning:
+  enabled: true
+  retries: 30
+  retryDelaySeconds: 2
+  topics:
+    - name: "rsoi.actions"
+      partitions: 1
+      replicas: 1

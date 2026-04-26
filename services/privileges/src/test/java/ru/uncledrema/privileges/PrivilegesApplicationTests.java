@@ -2,7 +2,7 @@ package ru.uncledrema.privileges;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import ru.uncledrema.privileges.events.PrivilegeEventPublisher;
 import ru.uncledrema.privileges.services.PrivilegeRepository;
 import ru.uncledrema.privileges.services.PrivilegeService;
 import ru.uncledrema.privileges.types.Privilege;
@@ -19,12 +19,14 @@ import static org.mockito.Mockito.when;
 class PrivilegesApplicationTests {
 
     private PrivilegeRepository privilegeRepository;
+    private PrivilegeEventPublisher privilegeEventPublisher;
     private PrivilegeService privilegeService;
 
     @BeforeEach
     void setUp() {
         privilegeRepository = mock(PrivilegeRepository.class);
-        privilegeService = new PrivilegeService(privilegeRepository);
+        privilegeEventPublisher = mock(PrivilegeEventPublisher.class);
+        privilegeService = new PrivilegeService(privilegeRepository, privilegeEventPublisher);
     }
 
     @Test

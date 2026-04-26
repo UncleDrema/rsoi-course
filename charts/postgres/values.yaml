@@ -33,6 +33,15 @@ postgresql:
   password: "postgres"
   database: "postgres"
   initScriptsConfigMap: "postgres-init-scripts"
+  applicationUser:
+    name: "program"
+    password: "test"
+  databases:
+    - "flights"
+    - "tickets"
+    - "privileges"
+    - "identity_provider"
+    - "statistics"
 
 # Persistent Volume
 persistence:

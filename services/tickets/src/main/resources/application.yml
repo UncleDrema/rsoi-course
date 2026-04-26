@@ -5,7 +5,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: https://uncledrema.us.auth0.com/
+          issuer-uri: ${TICKETS_JWT_ISSUER_URI:${IDENTITY_PROVIDER_ISSUER:http://localhost:8090}}
   application:
     name: tickets
   datasource:
@@ -17,5 +17,15 @@ spring:
     generate-ddl: true
     hibernate:
       ddl-auto: update
+  kafka:
+    bootstrap-servers: ${TICKETS_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 upstream:
   gateway: http://localhost:8080/api/v1
+tickets:
+  events:
+    enabled: ${TICKETS_EVENTS_ENABLED:true}
+    topic: ${TICKETS_EVENTS_TOPIC:rsoi.actions}
+    bootstrap-servers: ${TICKETS_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    request-timeout-ms: ${TICKETS_EVENTS_REQUEST_TIMEOUT_MS:1500}
+    delivery-timeout-ms: ${TICKETS_EVENTS_DELIVERY_TIMEOUT_MS:3000}
+    max-block-ms: ${TICKETS_EVENTS_MAX_BLOCK_MS:1500}

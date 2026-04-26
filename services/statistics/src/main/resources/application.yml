@@ -1,0 +1,26 @@
+server:
+  port: 8091
+spring:
+  application:
+    name: statistics
+  datasource:
+    url: ${STATISTICS_DATASOURCE_URL:jdbc:postgresql://localhost:5432/statistics}
+    username: ${STATISTICS_DATASOURCE_USERNAME:program}
+    password: ${STATISTICS_DATASOURCE_PASSWORD:test}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    generate-ddl: true
+    hibernate:
+      ddl-auto: update
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${STATISTICS_JWT_ISSUER_URI:${IDENTITY_PROVIDER_ISSUER:http://localhost:8090}}
+  kafka:
+    bootstrap-servers: ${STATISTICS_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${STATISTICS_KAFKA_GROUP_ID:statistics-service}
+statistics:
+  kafka:
+    topic: ${STATISTICS_KAFKA_TOPIC:rsoi.actions}

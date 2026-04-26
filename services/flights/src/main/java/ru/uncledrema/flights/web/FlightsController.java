@@ -1,21 +1,30 @@
 package ru.uncledrema.flights.web;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerProperties;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import ru.uncledrema.flights.dto.CreateFlightDto;
 import ru.uncledrema.flights.dto.FlightDto;
 import ru.uncledrema.flights.dto.PageDto;
+import ru.uncledrema.flights.events.FlightsEventPublisher;
 import ru.uncledrema.flights.services.FlightService;
+
+import java.util.Map;
 
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/flights")
 public class FlightsController {
     private final FlightService flightService;
+    private final FlightsEventPublisher events;
 
     @GetMapping
     public ResponseEntity<PageDto<FlightDto>> getAll(
@@ -35,12 +44,25 @@ public class FlightsController {
                         flight.getDatetime().toLocalDateTime(),
                         flight.getPrice())
         ).toList();
-        return ResponseEntity.ok(new PageDto<>(
+        var response = ResponseEntity.ok(new PageDto<>(
                 flights.getNumber() + 1,
                 flights.getSize(),
                 flights.getTotalElements(),
                 dtos
         ));
+        if (response.getBody() != null) {
+            events.publish(
+                    "FLIGHTS_VIEWED",
+                    "flight-list",
+                    "page:" + response.getBody().page(),
+                    Map.of(
+                            "page", response.getBody().page(),
+                            "size", response.getBody().pageSize(),
+                            "totalElements", response.getBody().totalElements()
+                    )
+            );
+        }
+        return response;
     }
 
     @GetMapping("/{flightNumber}")
@@ -59,10 +81,17 @@ public class FlightsController {
                 flight.getDatetime().toLocalDateTime(),
                 flight.getPrice()
         );
+        events.publish(
+                "FLIGHT_VIEWED",
+                "flight",
+                flight.getFlightNumber(),
+                Map.of("flightNumber", flight.getFlightNumber())
+        );
         return ResponseEntity.ok(dto);
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<FlightDto> create(
             @RequestBody CreateFlightDto flightCreateDto
     ) {
@@ -83,6 +112,17 @@ public class FlightsController {
                 flight.getToAirport().getFullName(),
                 flight.getDatetime().toLocalDateTime(),
                 flight.getPrice()
+        );
+        events.publish(
+                "FLIGHT_CREATED",
+                "flight",
+                flight.getFlightNumber(),
+                Map.of(
+                        "flightNumber", flight.getFlightNumber(),
+                        "fromAirportId", flight.getFromAirport().getId(),
+                        "toAirportId", flight.getToAirport().getId(),
+                        "price", flight.getPrice()
+                )
         );
         return ResponseEntity.ok(dto);
     }

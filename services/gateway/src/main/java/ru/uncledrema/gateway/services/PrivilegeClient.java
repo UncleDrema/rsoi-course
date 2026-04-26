@@ -18,16 +18,12 @@ public class PrivilegeClient {
     @Value("${downstream.privileges:http://localhost:8050}")
     private String serviceUrl;
 
-    public Optional<PrivilegeShortInfoDto> getPrivilegeForUser(String username) {
+    public Optional<PrivilegeShortInfoDto> getPrivilegeForUser() {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-User-Name", username);
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
-
             ResponseEntity<PrivilegeShortInfoDto> response = restTemplate.exchange(
                     serviceUrl + "/privilege",
                     HttpMethod.GET,
-                    entity,
+                    HttpEntity.EMPTY,
                     PrivilegeShortInfoDto.class
             );
             return Optional.ofNullable(response.getBody());

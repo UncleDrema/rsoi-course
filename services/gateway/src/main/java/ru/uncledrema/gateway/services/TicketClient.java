@@ -19,16 +19,12 @@ public class TicketClient {
     @Value("${downstream.tickets:http://localhost:8070}")
     private String serviceUrl;
 
-    public Optional<List<TicketDto>> getTickets(String username) {
+    public Optional<List<TicketDto>> getTickets() {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-User-Name", username);
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
-
             ResponseEntity<TicketDto[]> response = restTemplate.exchange(
                     serviceUrl + "/tickets",
                     HttpMethod.GET,
-                    entity,
+                    HttpEntity.EMPTY,
                     TicketDto[].class
             );
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {

@@ -5,7 +5,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: https://uncledrema.us.auth0.com/
+          issuer-uri: ${FLIGHTS_JWT_ISSUER_URI:${IDENTITY_PROVIDER_ISSUER:http://localhost:8090}}
   application:
     name: flights
   datasource:
@@ -17,3 +17,18 @@ spring:
     generate-ddl: true
     hibernate:
       ddl-auto: update
+  kafka:
+    bootstrap-servers: ${FLIGHTS_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+        request.timeout.ms: ${FLIGHTS_KAFKA_REQUEST_TIMEOUT_MS:2000}
+        delivery.timeout.ms: ${FLIGHTS_KAFKA_DELIVERY_TIMEOUT_MS:3000}
+        max.block.ms: ${FLIGHTS_KAFKA_MAX_BLOCK_MS:2000}
+
+events:
+  enabled: ${FLIGHTS_EVENTS_ENABLED:true}
+  service: ${FLIGHTS_EVENTS_SERVICE:flights}
+  topic: ${FLIGHTS_EVENTS_TOPIC:rsoi.actions}

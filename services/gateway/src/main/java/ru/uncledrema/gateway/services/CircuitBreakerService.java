@@ -4,7 +4,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import ru.uncledrema.gateway.config.DegradationProperties;
-import ru.uncledrema.gateway.config.DegradationRule;
 import ru.uncledrema.gateway.config.ServiceRule;
 import ru.uncledrema.gateway.web.CircuitOpenException;
 

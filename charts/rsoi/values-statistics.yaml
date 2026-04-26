@@ -1,0 +1,86 @@
+replicaCount: 1
+
+image:
+  repository: "cr.yandex/crpjocodvb4840j8jqg2/statistics"
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets: []
+
+nameOverride: "statistics"
+fullnameOverride: "statistics"
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: "statistics"
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 8091
+  name: http
+
+auth:
+  issuerUri: "http://identity-provider:8090"
+
+env:
+  - name: SERVER_PORT
+    value: "8091"
+  - name: SPRING_APPLICATION_NAME
+    value: "statistics"
+  - name: SPRING_DATASOURCE_URL
+    value: "jdbc:postgresql://postgres:5432/statistics"
+  - name: SPRING_DATASOURCE_USERNAME
+    value: "program"
+  - name: SPRING_DATASOURCE_PASSWORD
+    value: "test"
+  - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+    value: "{{ .Values.auth.issuerUri }}"
+  - name: STATISTICS_JWT_ISSUER_URI
+    value: "{{ .Values.auth.issuerUri }}"
+  - name: STATISTICS_KAFKA_BOOTSTRAP_SERVERS
+    value: "redpanda:9092"
+  - name: STATISTICS_KAFKA_TOPIC
+    value: "rsoi.actions"
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: statistics.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources: {}
+
+livenessProbe:
+  httpGet:
+    path: /manage/health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /manage/health
+    port: http
+  initialDelaySeconds: 20
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 2
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

@@ -7,34 +7,32 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerProperties;
 import org.springframework.http.*;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
-import ru.uncledrema.gateway.auth.*;
 import ru.uncledrema.gateway.config.DegradationProperties;
 import ru.uncledrema.gateway.config.RouteRule;
 import ru.uncledrema.gateway.config.RouteServiceRule;
 import ru.uncledrema.gateway.dto.ErrorDto;
 import ru.uncledrema.gateway.dto.PrivilegeShortInfoDto;
 import ru.uncledrema.gateway.dto.TicketDto;
+import ru.uncledrema.gateway.dto.UserInfoDto;
 import ru.uncledrema.gateway.services.CircuitBreakerService;
 import ru.uncledrema.gateway.services.PrivilegeClient;
 import ru.uncledrema.gateway.services.TicketClient;
-import ru.uncledrema.gateway.dto.UserInfoDto;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 @RestController
@@ -42,16 +40,16 @@ import java.util.function.Supplier;
 @RequiredArgsConstructor
 @Slf4j
 public class ProxyController {
+    private static final String API_PREFIX = "/api/v1";
+
     private final RestTemplate restTemplate;
     private final PrivilegeClient privilegeClient;
     private final TicketClient ticketClient;
     private final DegradationProperties degradationProperties;
     private final CircuitBreakerService circuitBreakerService;
-    private final Auth0Properties auth0;
-    private final OAuth2ResourceServerProperties oAuthProps;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    // Простой локальный кэш userinfo: ключ — значение заголовка Authorization, значение — имя пользователя
-    private final Map<String, String> userInfoCache = new ConcurrentHashMap<>();
+    private final BlockingQueue<RequestTask> retryQueue = new LinkedBlockingQueue<>();
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     @Value("${downstream.flights:http://localhost:8060}")
     private String flightsBase;
@@ -62,122 +60,70 @@ public class ProxyController {
     @Value("${downstream.privileges:http://localhost:8050}")
     private String privilegesBase;
 
-    // очередь для повторной отправки запросов
-    private final BlockingQueue<RequestTask> retryQueue = new LinkedBlockingQueue<>();
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    @Value("${downstream.statistics:http://localhost:8091}")
+    private String statisticsBase;
 
-
-    // инициализация фоновой обработки очереди
     {
-        // запускаем фонового воркера, который раз в секунду пытается обработать одну задачу из очереди
         scheduler.scheduleWithFixedDelay(this::processQueueOnce, 0, 1, TimeUnit.SECONDS);
     }
 
-    @PostMapping("/authorize")
-    public ResponseEntity<?> authorize(@RequestBody LoginRequest login) {
-        String tokenUrl = "https://" + auth0.getDomain() + "/oauth/token";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("grant_type", "password");
-        body.put("client_id", auth0.getClientId());
-        body.put("client_secret", auth0.getClientSecret());
-        body.put("username", login.username());
-        body.put("password", login.password());
-        body.put("audience", auth0.getAudience());
-        body.put("scope", "openid profile email");
-
-        HttpEntity<Map<String,Object>> req = new HttpEntity<>(body, headers);
-
-        try {
-            ResponseEntity<TokenResponse> resp = restTemplate.exchange(
-                    URI.create(tokenUrl),
-                    HttpMethod.POST,
-                    req,
-                    TokenResponse.class
-            );
-            TokenResponse tokens = resp.getBody();
-            if (tokens == null) {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(new ErrorDto("Empty token response from identity provider"));
-            }
-
-            return ResponseEntity.ok(new LoginResult(tokens.accessToken, tokens.tokenType));
-
-        } catch (HttpStatusCodeException ex) {
-            // пробросим тело ошибки от auth0 клиенту
-            String bodyStr = ex.getResponseBodyAsString();
-            log.warn("Auth0 token error: status={}, body={}", ex.getStatusCode(), bodyStr);
-            return ResponseEntity.status(ex.getStatusCode())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(bodyStr);
-        } catch (Exception e) {
-            log.error("Failed to request token: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ErrorDto("Internal error contacting identity provider"));
-        }
-    }
-
     @GetMapping("/test-token")
-    public ResponseEntity<?> testToken() {
-        return ResponseEntity.ok(getUsernameFromUserInfo());
+    public ResponseEntity<String> testToken(@AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(usernameFrom(jwt));
     }
 
-    // ---- Aggregation example: GET /me ----
     @GetMapping("/me")
-    public ResponseEntity<?> me() {
-        // идентификатор пользователя в токене:
-        var username = getUsernameFromUserInfo();
-
+    public ResponseEntity<?> me(@AuthenticationPrincipal Jwt jwt) {
+        usernameFrom(jwt);
         String routeKey = "/api/v1/me";
 
         ServiceResult<PrivilegeShortInfoDto> privRes = getWithDegradation(
                 routeKey,
                 "privileges",
-                () -> privilegeClient.getPrivilegeForUser(username).orElse(null),
-                new TypeReference<>() {}
+                () -> privilegeClient.getPrivilegeForUser().orElse(null),
+                new TypeReference<>() {
+                }
         );
 
         if (privRes.criticalUnavailable) {
-            String msg = getServiceDisplayName("privileges") + " unavailable";
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(new ErrorDto(msg));
+            return unavailable("privileges");
         }
 
         ServiceResult<List<TicketDto>> ticketsRes = getWithDegradation(
                 routeKey,
                 "tickets",
-                () -> ticketClient.getTickets(username).orElse(null),
-                new TypeReference<>() {}
+                () -> ticketClient.getTickets().orElse(null),
+                new TypeReference<>() {
+                }
         );
 
         if (ticketsRes.criticalUnavailable) {
-            String msg = getServiceDisplayName("tickets") + " unavailable";
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(new ErrorDto(msg));
+            return unavailable("tickets");
         }
 
-        UserInfoDto dto = new UserInfoDto(ticketsRes.value, privRes.value);
-        return ResponseEntity.ok(dto);
+        return ResponseEntity.ok(new UserInfoDto(ticketsRes.value, privRes.value));
     }
 
-    @RequestMapping(path = "/**", method = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.PATCH})
-    public ResponseEntity<?> proxyAll(HttpServletRequest request, @RequestHeader(value = "X-Service-Key", required = false) String service, @RequestBody(required = false) byte[] body) {
+    @RequestMapping(path = "/**", method = {
+            RequestMethod.GET,
+            RequestMethod.POST,
+            RequestMethod.PUT,
+            RequestMethod.DELETE,
+            RequestMethod.PATCH
+    })
+    public ResponseEntity<?> proxyAll(
+            HttpServletRequest request,
+            @RequestHeader(value = "X-Service-Key", required = false) String service,
+            @RequestBody(required = false) byte[] body
+    ) {
         HttpMethod method = HttpMethod.valueOf(request.getMethod());
-        String fullPath = request.getRequestURI(); // /api/v1/...
-        String prefix = "/api/v1";
-        String forwardPath = fullPath.startsWith(prefix) ? fullPath.substring(prefix.length()) : fullPath; // /flights/...
+        String fullPath = request.getRequestURI();
+        String forwardPath = fullPath.startsWith(API_PREFIX) ? fullPath.substring(API_PREFIX.length()) : fullPath;
         String query = request.getQueryString();
         String targetBase = selectTarget(forwardPath);
         String serviceKey = service == null ? serviceKeyFor(forwardPath) : service;
-        String routeKey = prefix + forwardPath; // предполагаем, что в конфиге ключи маршрутов заданы как "/api/v1/..."
-        log.info("proxy: {} {} -> serviceKey={} target={} for {}", method.name(), forwardPath, serviceKey, targetBase, serviceKey);
+        String routeKey = API_PREFIX + forwardPath;
 
-        // если нет целевого сервиса (не flights/tickets/privilege) — 404
         if (targetBase == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(("No downstream service for path: " + forwardPath).getBytes(StandardCharsets.UTF_8));
@@ -186,73 +132,43 @@ public class ProxyController {
         RouteRule routeRule = degradationProperties.getRouteRuleByPath(method, routeKey);
         RouteServiceRule routeServiceRule = routeRule.getRuleFor(serviceKey);
 
-
-        // Если цепь открыта — решаем по правилу маршрута
         try {
             circuitBreakerService.beforeCall(serviceKey);
         } catch (CircuitOpenException ignored) {
-            if (routeServiceRule.isCritical()) {
-                String msg = getServiceDisplayName(serviceKeyFor(forwardPath)) + " unavailable";
-                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body((new ErrorDto(msg)));
-            } else {
-                String fallback = routeServiceRule.getFallback();
-                byte[] bodyBytes = fallback != null ? fallback.getBytes(StandardCharsets.UTF_8) : new byte[0];
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-                return new ResponseEntity<>(bodyBytes, headers, HttpStatus.OK);
-            }
+            return degradedResponse(forwardPath, serviceKey, routeServiceRule);
         }
 
         String url = targetBase + forwardPath + (query != null ? "?" + query : "");
-        log.info("redirecting to URL: {}", url);
-
         HttpHeaders headers = copyRequestHeaders(request);
-
         HttpEntity<byte[]> entity = new HttpEntity<>(body, headers);
 
         try {
             ResponseEntity<byte[]> resp = restTemplate.exchange(URI.create(url), method, entity, byte[].class);
             circuitBreakerService.recordSuccess(serviceKey);
-            HttpHeaders outHeaders = filterResponseHeaders(resp.getHeaders());
-            return new ResponseEntity<>(resp.getBody(), outHeaders, resp.getStatusCode());
+            return new ResponseEntity<>(resp.getBody(), filterResponseHeaders(resp.getHeaders()), resp.getStatusCode());
         } catch (HttpStatusCodeException ex) {
-            log.warn("status code exception {} from downstream: {}", ex.getClass().getCanonicalName(), ex.getStatusCode());
             circuitBreakerService.recordFailure(serviceKey);
-            byte[] respBody = ex.getResponseBodyAsByteArray();
-            HttpHeaders outHeaders = filterResponseHeaders(ex.getResponseHeaders());
-            return new ResponseEntity<>(respBody, outHeaders, ex.getStatusCode());
-        } catch (Exception ignored) {
-            log.warn("exception from downstream: {}, rule: {}", ignored.getMessage(), routeServiceRule);
+            return new ResponseEntity<>(
+                    ex.getResponseBodyAsByteArray(),
+                    filterResponseHeaders(ex.getResponseHeaders()),
+                    ex.getStatusCode()
+            );
+        } catch (Exception ex) {
+            log.warn("Downstream call failed for {} {}: {}", method, url, ex.getMessage());
             circuitBreakerService.recordFailure(serviceKey);
             if (!routeServiceRule.isCritical() && routeServiceRule.isEnqueueOnFailure()) {
-                RequestTask task = new RequestTask(url, method, copyRequestHeaders(request), body, serviceKey);
-                retryQueue.offer(task);
-                String fallback = routeServiceRule.getFallback();
-                byte[] bodyBytes = fallback != null ? fallback.getBytes(StandardCharsets.UTF_8) : new byte[0];
-                HttpHeaders h = new HttpHeaders();
-                h.setContentType(MediaType.APPLICATION_JSON);
-                return new ResponseEntity<>(bodyBytes, h, HttpStatus.OK);
+                retryQueue.offer(new RequestTask(url, method, copyRequestHeaders(request), body, serviceKey));
             }
-
-            if (routeServiceRule.isCritical()) {
-                String msg = getServiceDisplayName(serviceKeyFor(forwardPath)) + " unavailable";
-                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(new ErrorDto(msg));
-            } else {
-                String fallback = routeServiceRule.getFallback();
-                byte[] bodyBytes = fallback != null ? fallback.getBytes(StandardCharsets.UTF_8) : new byte[0];
-                HttpHeaders h = new HttpHeaders();
-                h.setContentType(MediaType.APPLICATION_JSON);
-                return new ResponseEntity<>(bodyBytes, h, HttpStatus.OK);
-            }
+            return degradedResponse(forwardPath, serviceKey, routeServiceRule);
         }
     }
 
-    // перегрузка для простых типов / конкретных классов
-    private <T> ServiceResult<T> getWithDegradation(String routeKey, String serviceKey, Supplier<T> supplier, TypeReference<T> typeRef) {
+    private <T> ServiceResult<T> getWithDegradation(
+            String routeKey,
+            String serviceKey,
+            Supplier<T> supplier,
+            TypeReference<T> typeRef
+    ) {
         RouteRule routeRule = degradationProperties.getRouteRuleByPath(HttpMethod.GET, routeKey);
         RouteServiceRule routeServiceRule = routeRule.getRuleFor(serviceKey);
 
@@ -261,76 +177,171 @@ public class ProxyController {
             T val = supplier.get();
             circuitBreakerService.recordSuccess(serviceKey);
             return ServiceResult.ok(val);
-        } catch (CircuitOpenException _) {
-            if (routeServiceRule.isCritical()) {
-                return ServiceResult.criticalUnavailable();
-            } else {
-                circuitBreakerService.recordFailure(serviceKey);
-                String fallback = routeServiceRule.getFallback();
-                if (fallback == null || fallback.isBlank()) return ServiceResult.fallback(null);
-                try {
-                    T parsed = objectMapper.readValue(fallback, typeRef);
-                    return ServiceResult.fallback(parsed);
-                } catch (Exception e) {
-                    log.warn("Failed to parse fallback for {}/{}: {}", routeKey, serviceKey, e.getMessage());
-                    return ServiceResult.fallback(null);
-                }
-            }
-        } catch (Exception ignored) {
+        } catch (CircuitOpenException ex) {
+            return fallbackOrCritical(routeKey, serviceKey, routeServiceRule, typeRef);
+        } catch (Exception ex) {
             circuitBreakerService.recordFailure(serviceKey);
-            if (routeServiceRule.isCritical()) {
-                return ServiceResult.criticalUnavailable();
-            } else {
-                String fallback = routeServiceRule.getFallback();
-                if (fallback == null || fallback.isBlank()) return ServiceResult.fallback(null);
-                try {
-                    T parsed = objectMapper.readValue(fallback, typeRef);
-                    return ServiceResult.fallback(parsed);
-                } catch (Exception e) {
-                    log.warn("Failed to parse fallback for {}/{}: {}", routeKey, serviceKey, e.getMessage());
-                    return ServiceResult.fallback(null);
-                }
-            }
+            return fallbackOrCritical(routeKey, serviceKey, routeServiceRule, typeRef);
         }
     }
 
-    // фоновой процессинг: пробуем обработать одну задачу из очереди
+    private <T> ServiceResult<T> fallbackOrCritical(
+            String routeKey,
+            String serviceKey,
+            RouteServiceRule routeServiceRule,
+            TypeReference<T> typeRef
+    ) {
+        if (routeServiceRule.isCritical()) {
+            return ServiceResult.criticalUnavailable();
+        }
+        String fallback = routeServiceRule.getFallback();
+        if (fallback == null || fallback.isBlank()) {
+            return ServiceResult.fallback(null);
+        }
+        try {
+            return ServiceResult.fallback(objectMapper.readValue(fallback, typeRef));
+        } catch (Exception e) {
+            log.warn("Failed to parse fallback for {}/{}: {}", routeKey, serviceKey, e.getMessage());
+            return ServiceResult.fallback(null);
+        }
+    }
+
+    private ResponseEntity<?> degradedResponse(String forwardPath, String serviceKey, RouteServiceRule routeServiceRule) {
+        if (routeServiceRule.isCritical()) {
+            return unavailable(serviceKeyFor(forwardPath));
+        }
+        String fallback = routeServiceRule.getFallback();
+        byte[] bodyBytes = fallback != null ? fallback.getBytes(StandardCharsets.UTF_8) : new byte[0];
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return new ResponseEntity<>(bodyBytes, headers, HttpStatus.OK);
+    }
+
+    private ResponseEntity<ErrorDto> unavailable(String serviceKey) {
+        String msg = getServiceDisplayName(serviceKey) + " unavailable";
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new ErrorDto(msg));
+    }
+
     private void processQueueOnce() {
         RequestTask task = retryQueue.poll();
-        if (task == null) return;
-        log.info("Executing task {} with url {}", task.serviceKey, task.url);
+        if (task == null) {
+            return;
+        }
         try {
             HttpEntity<byte[]> entity = new HttpEntity<>(task.body, task.headers);
             restTemplate.exchange(URI.create(task.url), task.method, entity, byte[].class);
             circuitBreakerService.recordSuccess(task.serviceKey);
-            log.info("Retry task succeeded for url={}, service={}", task.url, task.serviceKey);
-            // при успехе задача просто не возвращаем в очередь
         } catch (Exception e) {
             log.warn("Retry task failed for url={}, service={}, will retry in 5s: {}", task.url, task.serviceKey, e.getMessage());
             circuitBreakerService.recordFailure(task.serviceKey);
-            // переотправляем задачу через 5 секунд
             scheduler.schedule(() -> retryQueue.offer(task), 5, TimeUnit.SECONDS);
         }
     }
 
-    // ---- небольшой вспомогательный класс для результата ----
+    private String serviceKeyFor(String forwardPath) {
+        String p = forwardPath.toLowerCase();
+        if (p.startsWith("/flights") || p.startsWith("/airports")) {
+            return "flights";
+        }
+        if (p.startsWith("/tickets")) {
+            return "tickets";
+        }
+        if (p.startsWith("/privilege") || p.startsWith("/privileges")) {
+            return "privileges";
+        }
+        if (p.startsWith("/statistics")) {
+            return "statistics";
+        }
+        return "unknown";
+    }
+
+    @Nullable
+    private String selectTarget(String forwardPath) {
+        String p = forwardPath.toLowerCase();
+        if (p.startsWith("/flights") || p.startsWith("/airports")) {
+            return flightsBase;
+        }
+        if (p.startsWith("/tickets")) {
+            return ticketsBase;
+        }
+        if (p.startsWith("/privilege") || p.startsWith("/privileges")) {
+            return privilegesBase;
+        }
+        if (p.startsWith("/statistics")) {
+            return statisticsBase;
+        }
+        return null;
+    }
+
+    private String getServiceDisplayName(String serviceKey) {
+        var rule = degradationProperties.getServiceRule(serviceKey);
+        if (rule != null && rule.getDisplayName() != null && !rule.getDisplayName().isBlank()) {
+            return rule.getDisplayName();
+        }
+        if (serviceKey == null || serviceKey.isBlank()) {
+            return "Service";
+        }
+        return Character.toUpperCase(serviceKey.charAt(0)) + serviceKey.substring(1);
+    }
+
+    private HttpHeaders copyRequestHeaders(HttpServletRequest request) {
+        HttpHeaders headers = new HttpHeaders();
+        Enumeration<String> names = request.getHeaderNames();
+        while (names != null && names.hasMoreElements()) {
+            String name = names.nextElement();
+            if ("host".equalsIgnoreCase(name) || "content-length".equalsIgnoreCase(name)) {
+                continue;
+            }
+            Enumeration<String> values = request.getHeaders(name);
+            while (values.hasMoreElements()) {
+                headers.add(name, values.nextElement());
+            }
+        }
+        return headers;
+    }
+
+    private HttpHeaders filterResponseHeaders(@Nullable HttpHeaders in) {
+        HttpHeaders out = new HttpHeaders();
+        if (in == null) {
+            return out;
+        }
+        in.forEach((k, v) -> {
+            if (!"transfer-encoding".equalsIgnoreCase(k) && !"connection".equalsIgnoreCase(k)) {
+                out.put(k, v);
+            }
+        });
+        return out;
+    }
+
+    private String usernameFrom(Jwt jwt) {
+        String username = jwt.getClaimAsString("preferred_username");
+        return username != null && !username.isBlank() ? username : jwt.getSubject();
+    }
+
     private static class ServiceResult<T> {
         final boolean criticalUnavailable;
-        final boolean usedFallback;
         final T value;
 
-        private ServiceResult(boolean criticalUnavailable, boolean usedFallback, T value) {
+        private ServiceResult(boolean criticalUnavailable, T value) {
             this.criticalUnavailable = criticalUnavailable;
-            this.usedFallback = usedFallback;
             this.value = value;
         }
 
-        static <T> ServiceResult<T> ok(T v) { return new ServiceResult<>(false, false, v); }
-        static <T> ServiceResult<T> fallback(T v) { return new ServiceResult<>(false, true, v); }
-        static <T> ServiceResult<T> criticalUnavailable() { return new ServiceResult<>(true, false, null); }
+        static <T> ServiceResult<T> ok(T v) {
+            return new ServiceResult<>(false, v);
+        }
+
+        static <T> ServiceResult<T> fallback(T v) {
+            return new ServiceResult<>(false, v);
+        }
+
+        static <T> ServiceResult<T> criticalUnavailable() {
+            return new ServiceResult<>(true, null);
+        }
     }
 
-    // ---- вспомогательный класс для тасков очереди ----
     private static class RequestTask {
         final String url;
         final HttpMethod method;
@@ -345,87 +356,5 @@ public class ProxyController {
             this.body = body;
             this.serviceKey = serviceKey;
         }
-    }
-
-    // ---- утилиты копирования заголовков и маршрутизации ----
-    private String serviceKeyFor(String forwardPath) {
-        String p = forwardPath.toLowerCase();
-        if (p.startsWith("/flights") || p.startsWith("/airports")) return "flights";
-        if (p.startsWith("/tickets")) return "tickets";
-        if (p.startsWith("/privilege") || p.startsWith("/privileges")) return "privileges";
-        return "unknown";
-    }
-
-    @Nullable
-    private String selectTarget(String forwardPath) {
-        String p = forwardPath.toLowerCase();
-        if (p.startsWith("/flights") || p.startsWith("/airports")) return flightsBase;
-        if (p.startsWith("/tickets")) return ticketsBase;
-        if (p.startsWith("/privilege") || p.startsWith("/privileges")) return privilegesBase;
-        return null;
-    }
-
-    private String getServiceDisplayName(String serviceKey) {
-        var rule = degradationProperties.getServiceRule(serviceKey);
-        if (rule != null && rule.getDisplayName() != null && !rule.getDisplayName().isBlank()) {
-            return rule.getDisplayName();
-        }
-        // fallback: capitalize serviceKey
-        if (serviceKey == null) return "Service";
-        String s = serviceKey.trim();
-        if (s.isEmpty()) return "Service";
-        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
-    }
-
-    private HttpHeaders copyRequestHeaders(HttpServletRequest request) {
-        HttpHeaders headers = new HttpHeaders();
-        Enumeration<String> names = request.getHeaderNames();
-        while (names != null && names.hasMoreElements()) {
-            String name = names.nextElement();
-            if ("host".equalsIgnoreCase(name) || "content-length".equalsIgnoreCase(name)) continue;
-            Enumeration<String> values = request.getHeaders(name);
-            while (values.hasMoreElements()) {
-                headers.add(name, values.nextElement());
-            }
-        }
-        return headers;
-    }
-
-    private HttpHeaders filterResponseHeaders(HttpHeaders in) {
-        HttpHeaders out = new HttpHeaders();
-        if (in == null) return out;
-        in.forEach((k, v) -> {
-            if ("transfer-encoding".equalsIgnoreCase(k) || "connection".equalsIgnoreCase(k)) return;
-            out.put(k, v);
-        });
-        return out;
-    }
-
-    private String getUsernameFromUserInfo() {
-        String userInfoUrl = oAuthProps.getJwt().getIssuerUri() + "userinfo";
-        // Ключ кэша — текущий Authorization из входящего запроса
-        String authHeader = null;
-        try {
-            var attrs = org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
-            if (attrs instanceof org.springframework.web.context.request.ServletRequestAttributes sra) {
-                authHeader = sra.getRequest().getHeader("Authorization");
-            }
-        } catch (Exception ignored) {
-        }
-
-        if (authHeader != null) {
-            String cached = userInfoCache.get(authHeader);
-            if (cached != null) {
-                return cached;
-            }
-        }
-
-        var userInfo = restTemplate.exchange(URI.create(userInfoUrl), HttpMethod.GET, HttpEntity.EMPTY, Map.class);
-        String name = (String) userInfo.getBody().get("name");
-
-        if (authHeader != null && name != null) {
-            userInfoCache.put(authHeader, name);
-        }
-        return name;
     }
 }

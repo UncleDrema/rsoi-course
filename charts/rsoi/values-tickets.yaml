@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: "cr.yandex/crpmeck79ctbb2r5j4j5/tickets"
+  repository: "cr.yandex/crpjocodvb4840j8jqg2/tickets"
   pullPolicy: Always
   tag: "latest"
 
@@ -28,10 +28,7 @@ service:
   name: http
 
 auth:
-  auth0:
-    domain: "uncledrema.us.auth0.com"
-    audience: "https://rsoi.api.com"
-    issuerUri: "https://uncledrema.us.auth0.com/"
+  issuerUri: "http://identity-provider:8090"
 
 env:
   - name: SERVER_PORT
@@ -47,11 +44,13 @@ env:
   - name: UPSTREAM_GATEWAY
     value: "http://gateway:8080/api/v1"
   - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
-    value: "{{ .Values.auth.auth0.issuerUri }}"
-  - name: AUTH_AUTH0_DOMAIN
-    value: "{{ .Values.auth.auth0.domain }}"
-  - name: AUTH_AUTH0_AUDIENCE
-    value: "{{ .Values.auth.auth0.audience }}"
+    value: "{{ .Values.auth.issuerUri }}"
+  - name: TICKETS_KAFKA_BOOTSTRAP_SERVERS
+    value: "redpanda:9092"
+  - name: TICKETS_EVENTS_TOPIC
+    value: "rsoi.actions"
+  - name: TICKETS_EVENTS_ENABLED
+    value: "true"
 
 ingress:
   enabled: false

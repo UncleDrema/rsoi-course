@@ -7,16 +7,20 @@ metadata:
 data:
   10-create-user.sql: |
     -- Create program user for microservices
-    CREATE ROLE program WITH PASSWORD 'test';
-    ALTER ROLE program WITH LOGIN;
+    DO
+    $do$
+    BEGIN
+      IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{{ .Values.postgresql.applicationUser.name }}') THEN
+        CREATE ROLE {{ .Values.postgresql.applicationUser.name }} WITH LOGIN PASSWORD '{{ .Values.postgresql.applicationUser.password }}';
+      ELSE
+        ALTER ROLE {{ .Values.postgresql.applicationUser.name }} WITH LOGIN PASSWORD '{{ .Values.postgresql.applicationUser.password }}';
+      END IF;
+    END
+    $do$;
 
   db-v1.sql: |
-    -- Database initialization script v1
-    CREATE DATABASE flights OWNER program;
-    CREATE DATABASE tickets OWNER program;
-    CREATE DATABASE privileges OWNER program;
-    
-    -- Grant privileges
-    GRANT ALL PRIVILEGES ON DATABASE flights TO program;
-    GRANT ALL PRIVILEGES ON DATABASE tickets TO program;
-    GRANT ALL PRIVILEGES ON DATABASE privileges TO program;
+    -- Database initialization script
+    {{- range .Values.postgresql.databases }}
+    CREATE DATABASE {{ . }} OWNER {{ $.Values.postgresql.applicationUser.name }};
+    GRANT ALL PRIVILEGES ON DATABASE {{ . }} TO {{ $.Values.postgresql.applicationUser.name }};
+    {{- end }}

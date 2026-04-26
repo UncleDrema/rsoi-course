@@ -1,0 +1,7 @@
+apiVersion: v2
+name: redpanda
+description: Single-node Redpanda for RSOI services
+
+type: application
+version: 0.1.0
+appVersion: "v26.1.5"

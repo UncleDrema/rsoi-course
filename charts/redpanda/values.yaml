@@ -1,0 +1,48 @@
+replicaCount: 1
+
+image:
+  repository: "docker.redpanda.com/redpandadata/redpanda"
+  pullPolicy: IfNotPresent
+  tag: "v26.1.5"
+
+imagePullSecrets: []
+
+nameOverride: "redpanda"
+fullnameOverride: "redpanda"
+
+serviceAccount:
+  create: false
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  fsGroup: 101
+securityContext:
+  runAsUser: 101
+  runAsGroup: 101
+
+service:
+  type: ClusterIP
+  kafkaPort: 9092
+  adminPort: 9644
+
+headlessService:
+  port: 9092
+  adminPort: 9644
+
+persistence:
+  enabled: true
+  storageClass: "yc-network-hdd"
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  mountPath: /var/lib/redpanda/data
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

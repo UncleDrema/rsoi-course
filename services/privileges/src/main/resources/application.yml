@@ -1,13 +1,13 @@
 server:
   port: 8050
 spring:
+  application:
+    name: privileges
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: https://uncledrema.us.auth0.com/
-  application:
-    name: privileges
+          issuer-uri: ${PRIVILEGES_JWT_ISSUER_URI:${IDENTITY_PROVIDER_ISSUER:http://localhost:8090}}
   datasource:
     url: jdbc:postgresql://localhost:5432/privileges
     username: program
@@ -17,3 +17,17 @@ spring:
     generate-ddl: true
     hibernate:
       ddl-auto: update
+  kafka:
+    bootstrap-servers: ${PRIVILEGES_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        request.timeout.ms: ${PRIVILEGES_KAFKA_REQUEST_TIMEOUT_MS:1000}
+        delivery.timeout.ms: ${PRIVILEGES_KAFKA_DELIVERY_TIMEOUT_MS:2000}
+        max.block.ms: ${PRIVILEGES_KAFKA_MAX_BLOCK_MS:1000}
+        default.api.timeout.ms: ${PRIVILEGES_KAFKA_DEFAULT_API_TIMEOUT_MS:1000}
+privileges:
+  events:
+    enabled: ${PRIVILEGES_EVENTS_ENABLED:true}
+    topic: ${PRIVILEGES_EVENTS_TOPIC:rsoi.actions}

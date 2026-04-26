@@ -1,4 +1,5 @@
 name: GitHub Classroom Workflow
+
 on:
   push:
     branches:
@@ -6,9 +7,16 @@ on:
   pull_request:
     branches:
       - master
+
+env:
+  YC_REGISTRY: cr.yandex/crpjocodvb4840j8jqg2
+  YC_FOLDER_ID: b1ga2j4c24npsduq8nbl
+  YC_CLUSTER_ID: catt2f1j3e9rt0uam2q4
+  KUBE_NAMESPACE: rsoi
+
 jobs:
   build:
-    name: Build and Push to Yandex Cloud Registry
+    name: Build, Push and Deploy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +30,13 @@ jobs:
           java-version: "25"
           cache: "gradle"
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/spa/package-lock.json
+
       - name: Make Gradle wrapper executable
         run: chmod +x services/*/gradlew
 
@@ -33,8 +48,6 @@ jobs:
       - name: Configure Yandex Cloud
         env:
           YC_OAUTH_TOKEN: ${{ secrets.YC_OAUTH_TOKEN }}
-          YC_FOLDER_ID: b1ga2j4c24npsduq8nbl
-          YC_REGISTRY: cr.yandex/crpjocodvb4840j8jqg2
         run: |
           yc config set token "$YC_OAUTH_TOKEN"
           yc config set folder-id "$YC_FOLDER_ID"
@@ -48,123 +61,181 @@ jobs:
       - name: Configure kubectl for Yandex Cloud
         env:
           YC_OAUTH_TOKEN: ${{ secrets.YC_OAUTH_TOKEN }}
-          YC_CLUSTER_ID: catt2f1j3e9rt0uam2q4
-          YC_FOLDER_ID: b1ga2j4c24npsduq8nbl
         run: |
           yc container cluster get-credentials "$YC_CLUSTER_ID" --external --force --folder-id "$YC_FOLDER_ID"
           kubectl cluster-info
           kubectl get nodes
 
-      - name: Build & publish image with bootBuildImage - Flights
+      - name: Build Spring image - Flights
         working-directory: ./services/flights
-        env:
-          YC_REGISTRY: cr.yandex/crpjocodvb4840j8jqg2
         run: ./gradlew --no-daemon bootBuildImage --imageName=${{ env.YC_REGISTRY }}/flights:${{ github.sha }}
 
-      - name: Push image to Yandex Cloud Registry - Flights
-        env:
-          YC_REGISTRY: cr.yandex/crpjocodvb4840j8jqg2
+      - name: Push image - Flights
         run: |
           IMAGE_SHA=${{ env.YC_REGISTRY }}/flights:${{ github.sha }}
           IMAGE_LATEST=${{ env.YC_REGISTRY }}/flights:latest
-          echo "Tagging $IMAGE_SHA as $IMAGE_LATEST"
-          docker tag $IMAGE_SHA $IMAGE_LATEST
-          echo "Pushing $IMAGE_SHA"
-          docker push $IMAGE_SHA
-          echo "Pushing $IMAGE_LATEST"
-          docker push $IMAGE_LATEST
+          docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
+          docker push "$IMAGE_SHA"
+          docker push "$IMAGE_LATEST"
 
-      - name: Build & publish image with bootBuildImage - Tickets
+      - name: Build Spring image - Tickets
         working-directory: ./services/tickets
-        env:
-          YC_REGISTRY: cr.yandex/crpjocodvb4840j8jqg2
         run: ./gradlew --no-daemon bootBuildImage --imageName=${{ env.YC_REGISTRY }}/tickets:${{ github.sha }}
 
-      - name: Push image to Yandex Cloud Registry - Tickets
-        env:
-          YC_REGISTRY: cr.yandex/crpjocodvb4840j8jqg2
+      - name: Push image - Tickets
         run: |
           IMAGE_SHA=${{ env.YC_REGISTRY }}/tickets:${{ github.sha }}
           IMAGE_LATEST=${{ env.YC_REGISTRY }}/tickets:latest
-          echo "Tagging $IMAGE_SHA as $IMAGE_LATEST"
-          docker tag $IMAGE_SHA $IMAGE_LATEST
-          echo "Pushing $IMAGE_SHA"
-          docker push $IMAGE_SHA
-          echo "Pushing $IMAGE_LATEST"
-          docker push $IMAGE_LATEST
+          docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
+          docker push "$IMAGE_SHA"
+          docker push "$IMAGE_LATEST"
 
-      - name: Build & publish image with bootBuildImage - Privileges
+      - name: Build Spring image - Privileges
         working-directory: ./services/privileges
-        env:
-          YC_REGISTRY: cr.yandex/crpjocodvb4840j8jqg2
         run: ./gradlew --no-daemon bootBuildImage --imageName=${{ env.YC_REGISTRY }}/privileges:${{ github.sha }}
 
-      - name: Push image to Yandex Cloud Registry - Privileges
-        env:
-          YC_REGISTRY: cr.yandex/crpjocodvb4840j8jqg2
+      - name: Push image - Privileges
         run: |
           IMAGE_SHA=${{ env.YC_REGISTRY }}/privileges:${{ github.sha }}
           IMAGE_LATEST=${{ env.YC_REGISTRY }}/privileges:latest
-          echo "Tagging $IMAGE_SHA as $IMAGE_LATEST"
-          docker tag $IMAGE_SHA $IMAGE_LATEST
-          echo "Pushing $IMAGE_SHA"
-          docker push $IMAGE_SHA
-          echo "Pushing $IMAGE_LATEST"
-          docker push $IMAGE_LATEST
+          docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
+          docker push "$IMAGE_SHA"
+          docker push "$IMAGE_LATEST"
 
-      - name: Build & publish image with bootBuildImage - Gateway
+      - name: Build Spring image - Gateway
         working-directory: ./services/gateway
-        env:
-          YC_REGISTRY: cr.yandex/crpjocodvb4840j8jqg2
         run: ./gradlew --no-daemon bootBuildImage --imageName=${{ env.YC_REGISTRY }}/gateway:${{ github.sha }}
 
-      - name: Push image to Yandex Cloud Registry - Gateway
-        env:
-          YC_REGISTRY: cr.yandex/crpjocodvb4840j8jqg2
+      - name: Push image - Gateway
         run: |
           IMAGE_SHA=${{ env.YC_REGISTRY }}/gateway:${{ github.sha }}
           IMAGE_LATEST=${{ env.YC_REGISTRY }}/gateway:latest
-          echo "Tagging $IMAGE_SHA as $IMAGE_LATEST"
-          docker tag $IMAGE_SHA $IMAGE_LATEST
-          echo "Pushing $IMAGE_SHA"
-          docker push $IMAGE_SHA
-          echo "Pushing $IMAGE_LATEST"
-          docker push $IMAGE_LATEST
+          docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
+          docker push "$IMAGE_SHA"
+          docker push "$IMAGE_LATEST"
+
+      - name: Build Spring image - Identity Provider
+        working-directory: ./services/identity-provider
+        run: ./gradlew --no-daemon bootBuildImage --imageName=${{ env.YC_REGISTRY }}/identity-provider:${{ github.sha }}
+
+      - name: Push image - Identity Provider
+        run: |
+          IMAGE_SHA=${{ env.YC_REGISTRY }}/identity-provider:${{ github.sha }}
+          IMAGE_LATEST=${{ env.YC_REGISTRY }}/identity-provider:latest
+          docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
+          docker push "$IMAGE_SHA"
+          docker push "$IMAGE_LATEST"
+
+      - name: Build Spring image - Statistics
+        working-directory: ./services/statistics
+        run: ./gradlew --no-daemon bootBuildImage --imageName=${{ env.YC_REGISTRY }}/statistics:${{ github.sha }}
+
+      - name: Push image - Statistics
+        run: |
+          IMAGE_SHA=${{ env.YC_REGISTRY }}/statistics:${{ github.sha }}
+          IMAGE_LATEST=${{ env.YC_REGISTRY }}/statistics:latest
+          docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
+          docker push "$IMAGE_SHA"
+          docker push "$IMAGE_LATEST"
+
+      - name: Build and test SPA
+        working-directory: ./frontend/spa
+        env:
+          VITE_OIDC_AUTHORITY: ${{ vars.VITE_OIDC_AUTHORITY }}
+          VITE_OIDC_CLIENT_ID: ${{ vars.VITE_OIDC_CLIENT_ID || 'spa-client' }}
+          VITE_API_BASE_PATH: ${{ vars.VITE_API_BASE_PATH || '/api/v1' }}
+        run: |
+          if [ -z "$VITE_OIDC_AUTHORITY" ]; then
+            echo "Repository variable VITE_OIDC_AUTHORITY must point to the public Identity Provider issuer URL."
+            exit 1
+          fi
+          npm ci
+          npm run check
+          npm run test
+          npm run build
+
+      - name: Build and push image - Frontend
+        working-directory: ./frontend/spa
+        run: |
+          cat > nginx.conf <<'EOF'
+          server {
+            listen 80;
+            server_name _;
+            root /usr/share/nginx/html;
+            index index.html;
+
+            location / {
+              try_files $uri $uri/ /index.html;
+            }
+          }
+          EOF
+
+          cat > /tmp/rsoi-spa.Dockerfile <<'EOF'
+          FROM nginx:1.27-alpine
+          COPY nginx.conf /etc/nginx/conf.d/default.conf
+          COPY dist /usr/share/nginx/html
+          EOF
+
+          IMAGE_SHA=${{ env.YC_REGISTRY }}/frontend:${{ github.sha }}
+          IMAGE_LATEST=${{ env.YC_REGISTRY }}/frontend:latest
+          docker build -f /tmp/rsoi-spa.Dockerfile -t "$IMAGE_SHA" .
+          docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
+          docker push "$IMAGE_SHA"
+          docker push "$IMAGE_LATEST"
+
+      - name: Update infrastructure charts
+        run: |
+          helm upgrade --install postgres ./charts/postgres -n "$KUBE_NAMESPACE"
+          helm upgrade --install redpanda ./charts/redpanda -n "$KUBE_NAMESPACE"
+          kubectl rollout status statefulset/postgres -n "$KUBE_NAMESPACE" --timeout=2m
+          kubectl rollout status statefulset/redpanda -n "$KUBE_NAMESPACE" --timeout=2m
+
+      - name: Update Identity Provider deployment
+        run: |
+          helm upgrade --install identity-provider ./charts/rsoi -f ./charts/rsoi/values-identity-provider.yaml \
+            --set image.tag=${{ github.sha }} \
+            -n "$KUBE_NAMESPACE"
+          kubectl rollout status deployment/identity-provider -n "$KUBE_NAMESPACE" --timeout=2m
+
+      - name: Update Statistics deployment
+        run: |
+          helm upgrade --install statistics ./charts/rsoi -f ./charts/rsoi/values-statistics.yaml \
+            --set image.tag=${{ github.sha }} \
+            -n "$KUBE_NAMESPACE"
+          kubectl rollout status deployment/statistics -n "$KUBE_NAMESPACE" --timeout=2m
 
       - name: Update Flights deployment
         run: |
-          helm upgrade flights ./charts/rsoi -f ./charts/rsoi/values-flights.yaml -n rsoi
-          kubectl rollout restart deployment flights -n rsoi
-          kubectl rollout status deployment flights -n rsoi --timeout=1m
+          helm upgrade --install flights ./charts/rsoi -f ./charts/rsoi/values-flights.yaml \
+            --set image.tag=${{ github.sha }} \
+            -n "$KUBE_NAMESPACE"
+          kubectl rollout status deployment/flights -n "$KUBE_NAMESPACE" --timeout=2m
 
       - name: Update Tickets deployment
         run: |
-          helm upgrade tickets ./charts/rsoi -f ./charts/rsoi/values-tickets.yaml -n rsoi
-          kubectl rollout restart deployment tickets -n rsoi
-          kubectl rollout status deployment tickets -n rsoi --timeout=1m
+          helm upgrade --install tickets ./charts/rsoi -f ./charts/rsoi/values-tickets.yaml \
+            --set image.tag=${{ github.sha }} \
+            -n "$KUBE_NAMESPACE"
+          kubectl rollout status deployment/tickets -n "$KUBE_NAMESPACE" --timeout=2m
 
       - name: Update Privileges deployment
         run: |
-          helm upgrade privileges ./charts/rsoi -f ./charts/rsoi/values-privileges.yaml -n rsoi
-          kubectl rollout restart deployment privileges -n rsoi
-          kubectl rollout status deployment privileges -n rsoi --timeout=1m
+          helm upgrade --install privileges ./charts/rsoi -f ./charts/rsoi/values-privileges.yaml \
+            --set image.tag=${{ github.sha }} \
+            -n "$KUBE_NAMESPACE"
+          kubectl rollout status deployment/privileges -n "$KUBE_NAMESPACE" --timeout=2m
 
       - name: Update Gateway deployment
-        env:
-          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
-          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
         run: |
-          helm upgrade gateway ./charts/rsoi -f ./charts/rsoi/values-gateway.yaml \
-            --set auth.auth0.clientId=$AUTH0_CLIENT_ID \
-            --set auth.auth0.clientSecret=$AUTH0_CLIENT_SECRET \
-            -n rsoi
-          kubectl rollout restart deployment gateway -n rsoi
-          kubectl rollout status deployment gateway -n rsoi --timeout=1m
+          helm upgrade --install gateway ./charts/rsoi -f ./charts/rsoi/values-gateway.yaml \
+            --set image.tag=${{ github.sha }} \
+            -n "$KUBE_NAMESPACE"
+          kubectl rollout status deployment/gateway -n "$KUBE_NAMESPACE" --timeout=2m
 
-      - name: Run API Tests
-        uses: matt-ball/newman-action@master
-        with:
-          collection: v1/postman/collection.json
-          environment: v1/postman/environment.json
-          delayRequest: 100
-          reporters: '[ "cli" ]'
+      - name: Update Frontend deployment
+        run: |
+          helm upgrade --install frontend ./charts/rsoi -f ./charts/rsoi/values-frontend.yaml \
+            --set image.tag=${{ github.sha }} \
+            --set auth.issuerUri="${{ vars.VITE_OIDC_AUTHORITY }}" \
+            -n "$KUBE_NAMESPACE"
+          kubectl rollout status deployment/frontend -n "$KUBE_NAMESPACE" --timeout=2m

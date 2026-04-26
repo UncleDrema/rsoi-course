@@ -1,12 +1,10 @@
 package ru.uncledrema.tickets.services;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 import ru.uncledrema.tickets.dto.BalanceOperationDto;
 import ru.uncledrema.tickets.dto.PrivilegeShortInfoDto;
@@ -14,7 +12,6 @@ import ru.uncledrema.tickets.dto.PrivilegeShortInfoDto;
 import java.util.Optional;
 import java.util.UUID;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PrivilegeClient {
@@ -25,14 +22,10 @@ public class PrivilegeClient {
 
     public Optional<PrivilegeShortInfoDto> getPrivilegeForUser(String username) {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-User-Name", username);
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
-
             ResponseEntity<PrivilegeShortInfoDto> response = restTemplate.exchange(
                     gatewayUrl + "/privilege",
                     HttpMethod.GET,
-                    entity,
+                    HttpEntity.EMPTY,
                     PrivilegeShortInfoDto.class
             );
             return Optional.ofNullable(response.getBody());
@@ -48,7 +41,6 @@ public class PrivilegeClient {
     public Optional<PrivilegeShortInfoDto> withdrawBonuses(String username, UUID ticketUid, int amount) {
         try {
             HttpHeaders headers = new HttpHeaders();
-            headers.set("X-User-Name", username);
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             BalanceOperationDto dto = new BalanceOperationDto(ticketUid, amount);
@@ -72,11 +64,8 @@ public class PrivilegeClient {
 
     public Optional<PrivilegeShortInfoDto> depositBonuses(String username, UUID ticketUid, int amount) {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-User-Name", username);
-
             BalanceOperationDto dto = new BalanceOperationDto(ticketUid, amount);
-            HttpEntity<BalanceOperationDto> entity = new HttpEntity<>(dto, headers);
+            HttpEntity<BalanceOperationDto> entity = new HttpEntity<>(dto);
 
             ResponseEntity<PrivilegeShortInfoDto> response = restTemplate.exchange(
                     gatewayUrl + "/privilege/deposit",
@@ -96,15 +85,10 @@ public class PrivilegeClient {
 
     public Optional<PrivilegeShortInfoDto> cancel(String username, UUID ticketUid) {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-User-Name", username);
-
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
-
             ResponseEntity<PrivilegeShortInfoDto> response = restTemplate.exchange(
                     gatewayUrl + "/privilege/cancel/" + ticketUid.toString(),
                     HttpMethod.POST,
-                    entity,
+                    HttpEntity.EMPTY,
                     PrivilegeShortInfoDto.class
             );
             return Optional.ofNullable(response.getBody());

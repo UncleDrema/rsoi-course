@@ -1,0 +1,46 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: identity-provider
+  datasource:
+    url: ${IDENTITY_PROVIDER_DATASOURCE_URL:jdbc:postgresql://localhost:5432/identity_provider}
+    username: ${IDENTITY_PROVIDER_DATASOURCE_USERNAME:program}
+    password: ${IDENTITY_PROVIDER_DATASOURCE_PASSWORD:test}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    generate-ddl: true
+    hibernate:
+      ddl-auto: update
+  security:
+    oauth2:
+      authorizationserver:
+        client:
+          public-spa:
+            registration:
+              client-id: ${IDENTITY_PROVIDER_PUBLIC_CLIENT_ID:spa-client}
+              client-authentication-methods:
+                - none
+              authorization-grant-types:
+                - authorization_code
+              redirect-uris:
+                - ${IDENTITY_PROVIDER_PUBLIC_REDIRECT_URI_1:http://127.0.0.1:3000/auth/callback}
+                - ${IDENTITY_PROVIDER_PUBLIC_REDIRECT_URI_2:http://localhost:3000/auth/callback}
+              scopes:
+                - openid
+                - profile
+                - email
+            require-authorization-consent: true
+            require-proof-key: true
+
+identity-provider:
+  issuer: ${IDENTITY_PROVIDER_ISSUER:http://localhost:8090}
+  signing:
+    private-key-pem: ${IDENTITY_PROVIDER_SIGNING_PRIVATE_KEY_PEM:}
+    public-key-pem: ${IDENTITY_PROVIDER_SIGNING_PUBLIC_KEY_PEM:}
+  admin:
+    username: ${IDENTITY_PROVIDER_ADMIN_USERNAME:dev-admin}
+    password: ${IDENTITY_PROVIDER_ADMIN_PASSWORD:dev-admin-password}
+    email: ${IDENTITY_PROVIDER_ADMIN_EMAIL:dev-admin@example.com}
+    name: ${IDENTITY_PROVIDER_ADMIN_NAME:Development Admin}

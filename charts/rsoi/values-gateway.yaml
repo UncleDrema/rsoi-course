@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: "cr.yandex/crpmeck79ctbb2r5j4j5/gateway"
+  repository: "cr.yandex/crpjocodvb4840j8jqg2/gateway"
   pullPolicy: Always
   tag: "latest"
 
@@ -28,12 +28,7 @@ service:
   name: http
 
 auth:
-  auth0:
-    domain: "uncledrema.us.auth0.com"
-    audience: "https://rsoi.api.com"
-    issuerUri: "https://uncledrema.us.auth0.com/"
-    clientId: ""
-    clientSecret: ""
+  issuerUri: "http://identity-provider:8090"
 
 env:
   - name: SERVER_PORT
@@ -46,22 +41,10 @@ env:
     value: "http://tickets:8070"
   - name: DOWNSTREAM_PRIVILEGES
     value: "http://privileges:8050"
+  - name: DOWNSTREAM_STATISTICS
+    value: "http://statistics:8091"
   - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
-    value: "{{ .Values.auth.auth0.issuerUri }}"
-  - name: AUTH_AUTH0_DOMAIN
-    value: "{{ .Values.auth.auth0.domain }}"
-  - name: AUTH_AUTH0_AUDIENCE
-    value: "{{ .Values.auth.auth0.audience }}"
-  - name: AUTH_AUTH0_CLIENT_ID
-    valueFrom:
-      secretKeyRef:
-        name: auth-secrets
-        key: client-id
-  - name: AUTH_AUTH0_CLIENT_SECRET
-    valueFrom:
-      secretKeyRef:
-        name: auth-secrets
-        key: client-secret
+    value: "{{ .Values.auth.issuerUri }}"
 
 ingress:
   enabled: true
@@ -70,8 +53,8 @@ ingress:
   hosts:
     - host: 130.193.57.16.nip.io
       paths:
-        - path: /
-          pathType: ImplementationSpecific
+        - path: /api/v1
+          pathType: Prefix
   tls: []
 
 resources: {}

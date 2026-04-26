@@ -67,6 +67,51 @@ jobs:
           kubectl cluster-info
           kubectl get nodes
 
+      - name: Build and test SPA
+        working-directory: ./frontend/spa
+        env:
+          VITE_OIDC_AUTHORITY: ${{ vars.VITE_OIDC_AUTHORITY }}
+          VITE_OIDC_CLIENT_ID: ${{ vars.VITE_OIDC_CLIENT_ID || 'spa-client' }}
+          VITE_API_BASE_PATH: ${{ vars.VITE_API_BASE_PATH || '/api/v1' }}
+        run: |
+          if [ -z "$VITE_OIDC_AUTHORITY" ]; then
+            echo "Repository variable VITE_OIDC_AUTHORITY must point to the public Identity Provider issuer URL."
+            exit 1
+          fi
+          npm ci
+          npm run check
+          npm run test
+          npm run build
+
+      - name: Build and push image - Frontend
+        working-directory: ./frontend/spa
+        run: |
+          cat > nginx.conf <<'EOF'
+          server {
+            listen 80;
+            server_name _;
+            root /usr/share/nginx/html;
+            index index.html;
+
+            location / {
+              try_files $uri $uri/ /index.html;
+            }
+          }
+          EOF
+
+          cat > /tmp/rsoi-spa.Dockerfile <<'EOF'
+          FROM nginx:1.27-alpine
+          COPY nginx.conf /etc/nginx/conf.d/default.conf
+          COPY dist /usr/share/nginx/html
+          EOF
+
+          IMAGE_SHA=${{ env.YC_REGISTRY }}/frontend:${{ github.sha }}
+          IMAGE_LATEST=${{ env.YC_REGISTRY }}/frontend:latest
+          docker build -f /tmp/rsoi-spa.Dockerfile -t "$IMAGE_SHA" .
+          docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
+          docker push "$IMAGE_SHA"
+          docker push "$IMAGE_LATEST"
+
       - name: Build Spring image - Flights
         working-directory: ./services/flights
         run: ./gradlew --no-daemon bootBuildImage --imageName=${{ env.YC_REGISTRY }}/flights:${{ github.sha }}
@@ -135,51 +180,6 @@ jobs:
         run: |
           IMAGE_SHA=${{ env.YC_REGISTRY }}/statistics:${{ github.sha }}
           IMAGE_LATEST=${{ env.YC_REGISTRY }}/statistics:latest
-          docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
-          docker push "$IMAGE_SHA"
-          docker push "$IMAGE_LATEST"
-
-      - name: Build and test SPA
-        working-directory: ./frontend/spa
-        env:
-          VITE_OIDC_AUTHORITY: ${{ vars.VITE_OIDC_AUTHORITY }}
-          VITE_OIDC_CLIENT_ID: ${{ vars.VITE_OIDC_CLIENT_ID || 'spa-client' }}
-          VITE_API_BASE_PATH: ${{ vars.VITE_API_BASE_PATH || '/api/v1' }}
-        run: |
-          if [ -z "$VITE_OIDC_AUTHORITY" ]; then
-            echo "Repository variable VITE_OIDC_AUTHORITY must point to the public Identity Provider issuer URL."
-            exit 1
-          fi
-          npm ci
-          npm run check
-          npm run test
-          npm run build
-
-      - name: Build and push image - Frontend
-        working-directory: ./frontend/spa
-        run: |
-          cat > nginx.conf <<'EOF'
-          server {
-            listen 80;
-            server_name _;
-            root /usr/share/nginx/html;
-            index index.html;
-
-            location / {
-              try_files $uri $uri/ /index.html;
-            }
-          }
-          EOF
-
-          cat > /tmp/rsoi-spa.Dockerfile <<'EOF'
-          FROM nginx:1.27-alpine
-          COPY nginx.conf /etc/nginx/conf.d/default.conf
-          COPY dist /usr/share/nginx/html
-          EOF
-
-          IMAGE_SHA=${{ env.YC_REGISTRY }}/frontend:${{ github.sha }}
-          IMAGE_LATEST=${{ env.YC_REGISTRY }}/frontend:latest
-          docker build -f /tmp/rsoi-spa.Dockerfile -t "$IMAGE_SHA" .
           docker tag "$IMAGE_SHA" "$IMAGE_LATEST"
           docker push "$IMAGE_SHA"
           docker push "$IMAGE_LATEST"

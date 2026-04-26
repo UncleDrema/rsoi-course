@@ -1,10 +1,10 @@
 package ru.uncledrema.statistics.services;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import ru.uncledrema.statistics.dto.EventDto;
 import ru.uncledrema.statistics.types.StatisticsEvent;
 
@@ -54,7 +54,7 @@ public class StatisticsEventMapper {
     private String writeValue(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalArgumentException("Unable to serialize event payload", exception);
         }
     }
@@ -68,7 +68,7 @@ public class StatisticsEventMapper {
         }
         try {
             return objectMapper.readValue(value, typeReference);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalArgumentException("Unable to deserialize event payload", exception);
         }
     }

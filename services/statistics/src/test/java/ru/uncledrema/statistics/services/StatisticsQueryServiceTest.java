@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import tools.jackson.databind.json.JsonMapper;
 import ru.uncledrema.statistics.dto.EventDto;
 import ru.uncledrema.statistics.dto.StatisticsEventFilters;
 import ru.uncledrema.statistics.types.StatisticsEvent;
@@ -28,7 +29,7 @@ class StatisticsQueryServiceTest {
     @BeforeEach
     void setUp() {
         repository = mock(StatisticsEventRepository.class);
-        queryService = new StatisticsQueryService(repository, new StatisticsEventMapper(new com.fasterxml.jackson.databind.ObjectMapper()));
+        queryService = new StatisticsQueryService(repository, new StatisticsEventMapper(JsonMapper.builder().build()));
     }
 
     @Test

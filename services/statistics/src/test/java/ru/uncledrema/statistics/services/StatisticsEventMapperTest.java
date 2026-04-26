@@ -1,7 +1,7 @@
 package ru.uncledrema.statistics.services;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 import ru.uncledrema.statistics.dto.EventDto;
 
 import java.time.Instant;
@@ -12,7 +12,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class StatisticsEventMapperTest {
-    private final StatisticsEventMapper mapper = new StatisticsEventMapper(new ObjectMapper());
+    private final StatisticsEventMapper mapper = new StatisticsEventMapper(JsonMapper.builder().build());
 
     @Test
     void mapsRoundTrip() {

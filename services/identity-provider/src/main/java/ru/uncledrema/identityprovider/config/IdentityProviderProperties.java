@@ -5,6 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "identity-provider")
 public class IdentityProviderProperties {
     private String issuer = "http://localhost:8090";
+    private final Cors cors = new Cors();
     private final Signing signing = new Signing();
     private final Admin admin = new Admin();
 
@@ -20,8 +21,24 @@ public class IdentityProviderProperties {
         return signing;
     }
 
+    public Cors getCors() {
+        return cors;
+    }
+
     public Admin getAdmin() {
         return admin;
+    }
+
+    public static class Cors {
+        private String allowedOrigins = "http://127.0.0.1:3000,http://localhost:3000";
+
+        public String getAllowedOrigins() {
+            return allowedOrigins;
+        }
+
+        public void setAllowedOrigins(String allowedOrigins) {
+            this.allowedOrigins = allowedOrigins;
+        }
     }
 
     public static class Signing {

@@ -21,7 +21,7 @@ spring:
     bootstrap-servers: ${PRIVILEGES_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
       properties:
         request.timeout.ms: ${PRIVILEGES_KAFKA_REQUEST_TIMEOUT_MS:1000}
         delivery.timeout.ms: ${PRIVILEGES_KAFKA_DELIVERY_TIMEOUT_MS:2000}

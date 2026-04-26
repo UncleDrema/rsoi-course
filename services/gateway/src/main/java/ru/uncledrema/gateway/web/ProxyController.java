@@ -1,7 +1,5 @@
 package ru.uncledrema.gateway.web;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +21,9 @@ import ru.uncledrema.gateway.dto.UserInfoDto;
 import ru.uncledrema.gateway.services.CircuitBreakerService;
 import ru.uncledrema.gateway.services.PrivilegeClient;
 import ru.uncledrema.gateway.services.TicketClient;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -47,7 +48,7 @@ public class ProxyController {
     private final TicketClient ticketClient;
     private final DegradationProperties degradationProperties;
     private final CircuitBreakerService circuitBreakerService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = JsonMapper.builder().findAndAddModules().build();
     private final BlockingQueue<RequestTask> retryQueue = new LinkedBlockingQueue<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 

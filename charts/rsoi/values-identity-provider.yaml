@@ -51,6 +51,8 @@ env:
     value: "http://81.26.187.28.nip.io/auth/callback"
   - name: IDENTITY_PROVIDER_PUBLIC_REDIRECT_URI_2
     value: "http://81.26.187.28.nip.io/auth/callback"
+  - name: IDENTITY_PROVIDER_CORS_ALLOWED_ORIGINS
+    value: "http://81.26.187.28.nip.io"
 
 ingress:
   enabled: true

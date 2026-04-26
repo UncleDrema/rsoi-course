@@ -15,7 +15,7 @@ import static org.mockito.Mockito.mock;
 class SecurityConfigTest {
     @Test
     void jwtConverterMapsRolesAndScopesToAuthorities() {
-        SecurityConfig config = new SecurityConfig(mock(IdentityUserService.class));
+        SecurityConfig config = new SecurityConfig(mock(IdentityUserService.class), new IdentityProviderProperties());
         Jwt jwt = new Jwt(
                 "token",
                 Instant.now(),

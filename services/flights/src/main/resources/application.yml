@@ -21,7 +21,7 @@ spring:
     bootstrap-servers: ${FLIGHTS_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
       properties:
         spring.json.add.type.headers: false
         request.timeout.ms: ${FLIGHTS_KAFKA_REQUEST_TIMEOUT_MS:2000}

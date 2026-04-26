@@ -45,6 +45,8 @@ env:
     value: "http://privileges:8050"
   - name: DOWNSTREAM_STATISTICS
     value: "http://statistics:8091"
+  - name: DOWNSTREAM_IDENTITY_PROVIDER
+    value: "http://identity-provider:8090"
   - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
     value: "{{ .Values.auth.issuerUri }}"
 

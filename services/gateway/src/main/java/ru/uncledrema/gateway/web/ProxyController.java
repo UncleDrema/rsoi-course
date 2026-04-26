@@ -64,6 +64,9 @@ public class ProxyController {
     @Value("${downstream.statistics:http://localhost:8091}")
     private String statisticsBase;
 
+    @Value("${downstream.identity-provider:http://localhost:8090}")
+    private String identityProviderBase;
+
     {
         scheduler.scheduleWithFixedDelay(this::processQueueOnce, 0, 1, TimeUnit.SECONDS);
     }
@@ -139,7 +142,8 @@ public class ProxyController {
             return degradedResponse(forwardPath, serviceKey, routeServiceRule);
         }
 
-        String url = targetBase + forwardPath + (query != null ? "?" + query : "");
+        String downstreamPath = downstreamPathFor(forwardPath);
+        String url = targetBase + downstreamPath + (query != null ? "?" + query : "");
         HttpHeaders headers = copyRequestHeaders(request);
         HttpEntity<byte[]> entity = new HttpEntity<>(body, headers);
 
@@ -255,6 +259,9 @@ public class ProxyController {
         if (p.startsWith("/statistics")) {
             return "statistics";
         }
+        if (p.startsWith("/users")) {
+            return "identity-provider";
+        }
         return "unknown";
     }
 
@@ -273,7 +280,17 @@ public class ProxyController {
         if (p.startsWith("/statistics")) {
             return statisticsBase;
         }
+        if (p.startsWith("/users")) {
+            return identityProviderBase;
+        }
         return null;
+    }
+
+    private String downstreamPathFor(String forwardPath) {
+        if (forwardPath.toLowerCase().startsWith("/users")) {
+            return API_PREFIX + forwardPath;
+        }
+        return forwardPath;
     }
 
     private String getServiceDisplayName(String serviceKey) {

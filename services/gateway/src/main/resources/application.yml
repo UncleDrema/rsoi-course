@@ -13,6 +13,7 @@ downstream:
   tickets: http://localhost:8070
   privileges: http://localhost:8050
   statistics: http://localhost:8091
+  identity-provider: http://localhost:8090
 degradation:
   services:
     flights:

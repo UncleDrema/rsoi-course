@@ -53,22 +53,18 @@ export interface UserInfo {
 }
 
 export interface AdminUser {
-  user_id?: string;
-  email?: string;
-  name?: string;
-  nickname?: string;
-  blocked?: boolean;
-  email_verified?: boolean;
-  app_metadata?: Record<string, unknown>;
-  user_metadata?: Record<string, unknown>;
-  [key: string]: unknown;
+  id: string;
+  username: string;
+  email: string;
+  name: string;
+  roles: string[];
 }
 
 export interface AdminCreateUserInput {
+  username: string;
   email: string;
   password: string;
   name: string;
-  role: string;
 }
 
 export interface StatisticsReport {

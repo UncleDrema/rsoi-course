@@ -87,13 +87,10 @@ export function getAdminUsers(): Promise<AdminUser[]> {
 
 export function createAdminUser(payload: AdminCreateUserInput): Promise<AdminUser> {
   const body = {
+    username: payload.username,
     email: payload.email,
     password: payload.password,
-    name: payload.name,
-    connection: "Username-Password-Authentication",
-    app_metadata: {
-      role: payload.role
-    }
+    name: payload.name
   };
 
   return apiFetch<AdminUser>(
@@ -115,9 +112,9 @@ export function getStatisticsReport(): Promise<StatisticsReport> {
 }
 
 export function getStatisticEvents(): Promise<StatisticEvent[]> {
-  return apiFetch<StatisticEvent[]>(
+  return apiFetch<PageDto<StatisticEvent>>(
     resolveAdminUrl(env.adminEventsPath),
     undefined,
     Boolean(env.adminBaseUrl)
-  );
+  ).then((page) => page.items);
 }

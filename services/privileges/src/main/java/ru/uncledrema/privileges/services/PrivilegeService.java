@@ -1,6 +1,7 @@
 package ru.uncledrema.privileges.services;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import ru.uncledrema.privileges.events.PrivilegeEventPublisher;
 import ru.uncledrema.privileges.types.Privilege;
@@ -15,10 +16,16 @@ public class PrivilegeService {
     private final PrivilegeEventPublisher privilegeEventPublisher;
 
     public Privilege getPrivilegeByUsername(String username) {
-        return privilegeRepository.findByUsername(username).orElseGet(() -> {
-            var privilege = new Privilege(username, 0);
-            return privilegeRepository.save(privilege);
-        });
+        return privilegeRepository.findByUsername(username).orElseGet(() -> createPrivilegeIfAbsent(username));
+    }
+
+    private Privilege createPrivilegeIfAbsent(String username) {
+        try {
+            return privilegeRepository.saveAndFlush(new Privilege(username, 0));
+        } catch (DataIntegrityViolationException ignored) {
+            return privilegeRepository.findByUsername(username)
+                    .orElseThrow(() -> ignored);
+        }
     }
 
     public Privilege withdraw(String username, UUID ticketId, Integer amount) {

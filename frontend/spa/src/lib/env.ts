@@ -10,8 +10,10 @@ function joinUrl(base: string, path: string): string {
   return `${normalizedBase}${normalizedPath}`;
 }
 
-const redirectPath = import.meta.env.VITE_OIDC_REDIRECT_PATH ?? "/auth/callback";
-const postLogoutPath = import.meta.env.VITE_OIDC_POST_LOGOUT_REDIRECT_PATH ?? "/login";
+const redirectPath =
+  import.meta.env.VITE_OIDC_REDIRECT_PATH ?? "/auth/callback";
+const postLogoutPath =
+  import.meta.env.VITE_OIDC_POST_LOGOUT_REDIRECT_PATH ?? "/login";
 
 export const env = {
   oidcAuthority: import.meta.env.VITE_OIDC_AUTHORITY ?? "",
@@ -19,11 +21,13 @@ export const env = {
   oidcScope: import.meta.env.VITE_OIDC_SCOPE ?? "openid profile email",
   apiBasePath: import.meta.env.VITE_API_BASE_PATH ?? "/api/v1",
   adminBaseUrl: import.meta.env.VITE_IDP_ADMIN_BASE_URL ?? "",
-  adminUsersPath: import.meta.env.VITE_IDP_ADMIN_USERS_PATH ?? "/api/v1/users",
-  adminReportPath: import.meta.env.VITE_IDP_ADMIN_REPORT_PATH ?? "/api/v1/statistics/report",
-  adminEventsPath: import.meta.env.VITE_IDP_ADMIN_EVENTS_PATH ?? "/api/v1/statistics/events",
+  adminUsersPath: import.meta.env.VITE_IDP_ADMIN_USERS_PATH ?? "/users",
+  adminReportPath:
+    import.meta.env.VITE_IDP_ADMIN_REPORT_PATH ?? "/statistics/report",
+  adminEventsPath:
+    import.meta.env.VITE_IDP_ADMIN_EVENTS_PATH ?? "/statistics/events",
   redirectUri: joinUrl(origin, redirectPath),
-  postLogoutRedirectUri: joinUrl(origin, postLogoutPath)
+  postLogoutRedirectUri: joinUrl(origin, postLogoutPath),
 };
 
 export function resolveAdminUrl(path: string): string {

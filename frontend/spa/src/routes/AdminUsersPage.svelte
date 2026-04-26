@@ -10,19 +10,19 @@
   const dispatch = createEventDispatcher<{ create: AdminCreateUserInput }>();
 
   let form: AdminCreateUserInput = {
+    username: "",
     email: "",
     password: "",
-    name: "",
-    role: "user"
+    name: ""
   };
 
   function submit(): void {
     dispatch("create", form);
     form = {
+      username: "",
       email: "",
       password: "",
-      name: "",
-      role: "user"
+      name: ""
     };
   }
 </script>
@@ -45,6 +45,10 @@
     </div>
     <form class="form-grid" on:submit|preventDefault={submit}>
       <label>
+        <span>Username</span>
+        <input bind:value={form.username} type="text" required />
+      </label>
+      <label>
         <span>Email</span>
         <input bind:value={form.email} type="email" required />
       </label>
@@ -55,13 +59,6 @@
       <label>
         <span>Password</span>
         <input bind:value={form.password} type="password" minlength="8" required />
-      </label>
-      <label>
-        <span>Role</span>
-        <select bind:value={form.role}>
-          <option value="user">user</option>
-          <option value="admin">admin</option>
-        </select>
       </label>
       <button class="primary-button" type="submit" disabled={saving}>
         {saving ? "Creating..." : "Create user"}
@@ -82,19 +79,17 @@
             <tr>
               <th>Name</th>
               <th>Email</th>
-              <th>User ID</th>
-              <th>Role</th>
-              <th>Status</th>
+              <th>Username</th>
+              <th>Roles</th>
             </tr>
           </thead>
           <tbody>
             {#each users as user}
               <tr>
-                <td>{user.name ?? user.nickname ?? "-"}</td>
-                <td>{user.email ?? "-"}</td>
-                <td>{user.user_id ?? "-"}</td>
-                <td>{String(user.app_metadata?.role ?? "-")}</td>
-                <td>{user.blocked ? "Blocked" : "Active"}</td>
+                <td>{user.name}</td>
+                <td>{user.email}</td>
+                <td>{user.username}</td>
+                <td>{user.roles.join(", ")}</td>
               </tr>
             {/each}
           </tbody>

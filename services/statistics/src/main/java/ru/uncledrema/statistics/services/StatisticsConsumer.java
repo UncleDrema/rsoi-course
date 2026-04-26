@@ -17,7 +17,7 @@ public class StatisticsConsumer {
     private final EventIngestionService eventIngestionService;
 
     @KafkaListener(
-            topics = "#{@kafkaProperties.topic()}",
+            topics = "${statistics.kafka.topic}",
             groupId = "${spring.kafka.consumer.group-id}"
     )
     public void consume(String payload) throws JacksonException {

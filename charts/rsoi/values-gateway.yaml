@@ -23,12 +23,14 @@ podSecurityContext: {}
 securityContext: {}
 
 service:
-  type: ClusterIP
+  type: NodePort
   port: 8080
   name: http
+  annotations:
+    gwin.yandex.cloud/targets.type: Node
 
 auth:
-  issuerUri: "http://identity-provider:8090"
+  issuerUri: "http://idp.81.26.187.28.nip.io"
 
 env:
   - name: SERVER_PORT
@@ -48,10 +50,12 @@ env:
 
 ingress:
   enabled: true
-  className: "nginx"
-  annotations: {}
+  className: "gwin-default"
+  annotations:
+    gwin.yandex.cloud/groupName: rsoi
+    gwin.yandex.cloud/externalIPv4Address: auto
   hosts:
-    - host: 130.193.57.16.nip.io
+    - host: 81.26.187.28.nip.io
       paths:
         - path: /api/v1
           pathType: Prefix

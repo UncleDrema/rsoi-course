@@ -23,12 +23,14 @@ podSecurityContext: {}
 securityContext: {}
 
 service:
-  type: ClusterIP
+  type: NodePort
   port: 8090
   name: http
+  annotations:
+    gwin.yandex.cloud/targets.type: Node
 
 auth:
-  issuerUri: "http://identity-provider:8090"
+  issuerUri: "http://idp.81.26.187.28.nip.io"
 
 env:
   - name: SERVER_PORT
@@ -46,16 +48,18 @@ env:
   - name: IDENTITY_PROVIDER_ISSUER
     value: "{{ .Values.auth.issuerUri }}"
   - name: IDENTITY_PROVIDER_PUBLIC_REDIRECT_URI_1
-    value: "http://127.0.0.1:3000/auth/callback"
+    value: "http://81.26.187.28.nip.io/auth/callback"
   - name: IDENTITY_PROVIDER_PUBLIC_REDIRECT_URI_2
-    value: "http://localhost:3000/auth/callback"
+    value: "http://81.26.187.28.nip.io/auth/callback"
 
 ingress:
-  enabled: false
-  className: "nginx"
-  annotations: {}
+  enabled: true
+  className: "gwin-default"
+  annotations:
+    gwin.yandex.cloud/groupName: rsoi
+    gwin.yandex.cloud/externalIPv4Address: 81.26.187.28
   hosts:
-    - host: identity-provider.local
+    - host: idp.81.26.187.28.nip.io
       paths:
         - path: /
           pathType: Prefix

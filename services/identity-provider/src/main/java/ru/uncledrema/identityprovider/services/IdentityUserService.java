@@ -11,6 +11,7 @@ import ru.uncledrema.identityprovider.dto.UserDto;
 import ru.uncledrema.identityprovider.types.IdentityRole;
 import ru.uncledrema.identityprovider.types.IdentityUser;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
@@ -42,7 +43,7 @@ public class IdentityUserService {
         user.setEmail(request.email());
         user.setName(request.name());
         user.setPassword(passwordEncoder.encode(request.password()));
-        user.setRoles(Set.of(IdentityRole.USER));
+        user.setRoles(EnumSet.of(IdentityRole.USER));
 
         return toDto(identityUserRepository.save(user));
     }
@@ -60,7 +61,7 @@ public class IdentityUserService {
         user.setEmail(email);
         user.setName(name);
         user.setPassword(passwordEncoder.encode(password));
-        user.setRoles(Set.of(IdentityRole.ADMIN));
+        user.setRoles(EnumSet.of(IdentityRole.ADMIN));
         return identityUserRepository.save(user);
     }
 

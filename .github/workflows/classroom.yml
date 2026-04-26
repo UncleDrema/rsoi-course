@@ -41,6 +41,52 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x services/*/gradlew
 
+      - name: Detect changed components
+        id: changes
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          elif [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            BASE_SHA="${{ github.event.before }}"
+          else
+            BASE_SHA="$(git rev-list --max-parents=0 HEAD)"
+          fi
+
+          git diff --name-only "$BASE_SHA" "${{ github.sha }}" | tee /tmp/changed-files.txt
+
+          changed_any() {
+            grep -Eq "$1" /tmp/changed-files.txt
+          }
+
+          set_flag() {
+            local name="$1"
+            local pattern="$2"
+            if changed_any "$pattern"; then
+              echo "$name=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "$name=false" >> "$GITHUB_OUTPUT"
+            fi
+          }
+
+          set_flag frontend_code '^(frontend/spa/|\.github/workflows/classroom\.yml$)'
+          set_flag flights_code '^(services/flights/|\.github/workflows/classroom\.yml$)'
+          set_flag tickets_code '^(services/tickets/|\.github/workflows/classroom\.yml$)'
+          set_flag privileges_code '^(services/privileges/|\.github/workflows/classroom\.yml$)'
+          set_flag gateway_code '^(services/gateway/|\.github/workflows/classroom\.yml$)'
+          set_flag identity_provider_code '^(services/identity-provider/|\.github/workflows/classroom\.yml$)'
+          set_flag statistics_code '^(services/statistics/|\.github/workflows/classroom\.yml$)'
+          set_flag infra_deploy '^(charts/postgres/|charts/redpanda/|\.github/workflows/classroom\.yml$)'
+
+          RSOI_COMMON='^(charts/rsoi/templates/|charts/rsoi/Chart.yaml|charts/rsoi/README.md|charts/rsoi/\.helmignore|\.github/workflows/classroom\.yml$)'
+          set_flag frontend_deploy "^(frontend/spa/|charts/rsoi/values-frontend.yaml|$RSOI_COMMON)"
+          set_flag flights_deploy "^(services/flights/|charts/rsoi/values-flights.yaml|$RSOI_COMMON)"
+          set_flag tickets_deploy "^(services/tickets/|charts/rsoi/values-tickets.yaml|$RSOI_COMMON)"
+          set_flag privileges_deploy "^(services/privileges/|charts/rsoi/values-privileges.yaml|$RSOI_COMMON)"
+          set_flag gateway_deploy "^(services/gateway/|charts/rsoi/values-gateway.yaml|$RSOI_COMMON)"
+          set_flag identity_provider_deploy "^(services/identity-provider/|charts/rsoi/values-identity-provider.yaml|$RSOI_COMMON)"
+          set_flag statistics_deploy "^(services/statistics/|charts/rsoi/values-statistics.yaml|$RSOI_COMMON)"
+
       - name: Install Yandex Cloud CLI
         run: |
           curl https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
@@ -68,6 +114,7 @@ jobs:
           kubectl get nodes
 
       - name: Build and test SPA
+        if: steps.changes.outputs.frontend_code == 'true'
         working-directory: ./frontend/spa
         env:
           VITE_OIDC_AUTHORITY: ${{ vars.VITE_OIDC_AUTHORITY }}
@@ -84,6 +131,7 @@ jobs:
           npm run build
 
       - name: Build and push image - Frontend
+        if: steps.changes.outputs.frontend_code == 'true'
         working-directory: ./frontend/spa
         run: |
           cat > nginx.conf <<'EOF'
@@ -113,10 +161,12 @@ jobs:
           docker push "$IMAGE_LATEST"
 
       - name: Build Spring image - Flights
+        if: steps.changes.outputs.flights_code == 'true'
         working-directory: ./services/flights
         run: ./gradlew --no-daemon bootBuildImage --imageName=${{ env.YC_REGISTRY }}/flights:${{ github.sha }}
 
       - name: Push image - Flights
+        if: steps.changes.outputs.flights_code == 'true'
         run: |
           IMAGE_SHA=${{ env.YC_REGISTRY }}/flights:${{ github.sha }}
           IMAGE_LATEST=${{ env.YC_REGISTRY }}/flights:latest
@@ -125,10 +175,12 @@ jobs:
           docker push "$IMAGE_LATEST"
 
       - name: Build Spring image - Tickets
+        if: steps.changes.outputs.tickets_code == 'true'
         working-directory: ./services/tickets
         run: ./gradlew --no-daemon bootBuildImage --imageName=${{ env.YC_REGISTRY }}/tickets:${{ github.sha }}
 
       - name: Push image - Tickets
+        if: steps.changes.outputs.tickets_code == 'true'
         run: |
           IMAGE_SHA=${{ env.YC_REGISTRY }}/tickets:${{ github.sha }}
           IMAGE_LATEST=${{ env.YC_REGISTRY }}/tickets:latest
@@ -137,10 +189,12 @@ jobs:
           docker push "$IMAGE_LATEST"
 
       - name: Build Spring image - Privileges
+        if: steps.changes.outputs.privileges_code == 'true'
         working-directory: ./services/privileges
         run: ./gradlew --no-daemon bootBuildImage --imageName=${{ env.YC_REGISTRY }}/privileges:${{ github.sha }}
 
       - name: Push image - Privileges
+        if: steps.changes.outputs.privileges_code == 'true'
         run: |
           IMAGE_SHA=${{ env.YC_REGISTRY }}/privileges:${{ github.sha }}
           IMAGE_LATEST=${{ env.YC_REGISTRY }}/privileges:latest
@@ -149,10 +203,12 @@ jobs:
           docker push "$IMAGE_LATEST"
 
       - name: Build Spring image - Gateway
+        if: steps.changes.outputs.gateway_code == 'true'
         working-directory: ./services/gateway
         run: ./gradlew --no-daemon bootBuildImage --imageName=${{ env.YC_REGISTRY }}/gateway:${{ github.sha }}
 
       - name: Push image - Gateway
+        if: steps.changes.outputs.gateway_code == 'true'
         run: |
           IMAGE_SHA=${{ env.YC_REGISTRY }}/gateway:${{ github.sha }}
           IMAGE_LATEST=${{ env.YC_REGISTRY }}/gateway:latest
@@ -161,10 +217,12 @@ jobs:
           docker push "$IMAGE_LATEST"
 
       - name: Build Spring image - Identity Provider
+        if: steps.changes.outputs.identity_provider_code == 'true'
         working-directory: ./services/identity-provider
         run: ./gradlew --no-daemon bootBuildImage --imageName=${{ env.YC_REGISTRY }}/identity-provider:${{ github.sha }}
 
       - name: Push image - Identity Provider
+        if: steps.changes.outputs.identity_provider_code == 'true'
         run: |
           IMAGE_SHA=${{ env.YC_REGISTRY }}/identity-provider:${{ github.sha }}
           IMAGE_LATEST=${{ env.YC_REGISTRY }}/identity-provider:latest
@@ -173,10 +231,12 @@ jobs:
           docker push "$IMAGE_LATEST"
 
       - name: Build Spring image - Statistics
+        if: steps.changes.outputs.statistics_code == 'true'
         working-directory: ./services/statistics
         run: ./gradlew --no-daemon bootBuildImage --imageName=${{ env.YC_REGISTRY }}/statistics:${{ github.sha }}
 
       - name: Push image - Statistics
+        if: steps.changes.outputs.statistics_code == 'true'
         run: |
           IMAGE_SHA=${{ env.YC_REGISTRY }}/statistics:${{ github.sha }}
           IMAGE_LATEST=${{ env.YC_REGISTRY }}/statistics:latest
@@ -185,6 +245,7 @@ jobs:
           docker push "$IMAGE_LATEST"
 
       - name: Update infrastructure charts
+        if: steps.changes.outputs.infra_deploy == 'true'
         run: |
           helm upgrade --install postgres ./charts/postgres -n "$KUBE_NAMESPACE"
           helm upgrade --install redpanda ./charts/redpanda -n "$KUBE_NAMESPACE"
@@ -192,51 +253,86 @@ jobs:
           kubectl rollout status statefulset/redpanda -n "$KUBE_NAMESPACE" --timeout=2m
 
       - name: Update Identity Provider deployment
+        if: steps.changes.outputs.identity_provider_deploy == 'true'
         run: |
+          IMAGE_TAG="latest"
+          if [ "${{ steps.changes.outputs.identity_provider_code }}" = "true" ]; then
+            IMAGE_TAG="${{ github.sha }}"
+          fi
           helm upgrade --install identity-provider ./charts/rsoi -f ./charts/rsoi/values-identity-provider.yaml \
-            --set image.tag=${{ github.sha }} \
+            --set image.tag="$IMAGE_TAG" \
             -n "$KUBE_NAMESPACE"
           kubectl rollout status deployment/identity-provider -n "$KUBE_NAMESPACE" --timeout=2m
 
       - name: Update Statistics deployment
+        if: steps.changes.outputs.statistics_deploy == 'true'
         run: |
+          IMAGE_TAG="latest"
+          if [ "${{ steps.changes.outputs.statistics_code }}" = "true" ]; then
+            IMAGE_TAG="${{ github.sha }}"
+          fi
           helm upgrade --install statistics ./charts/rsoi -f ./charts/rsoi/values-statistics.yaml \
-            --set image.tag=${{ github.sha }} \
+            --set image.tag="$IMAGE_TAG" \
             -n "$KUBE_NAMESPACE"
           kubectl rollout status deployment/statistics -n "$KUBE_NAMESPACE" --timeout=2m
 
       - name: Update Flights deployment
+        if: steps.changes.outputs.flights_deploy == 'true'
         run: |
+          IMAGE_TAG="latest"
+          if [ "${{ steps.changes.outputs.flights_code }}" = "true" ]; then
+            IMAGE_TAG="${{ github.sha }}"
+          fi
           helm upgrade --install flights ./charts/rsoi -f ./charts/rsoi/values-flights.yaml \
-            --set image.tag=${{ github.sha }} \
+            --set image.tag="$IMAGE_TAG" \
             -n "$KUBE_NAMESPACE"
           kubectl rollout status deployment/flights -n "$KUBE_NAMESPACE" --timeout=2m
 
       - name: Update Tickets deployment
+        if: steps.changes.outputs.tickets_deploy == 'true'
         run: |
+          IMAGE_TAG="latest"
+          if [ "${{ steps.changes.outputs.tickets_code }}" = "true" ]; then
+            IMAGE_TAG="${{ github.sha }}"
+          fi
           helm upgrade --install tickets ./charts/rsoi -f ./charts/rsoi/values-tickets.yaml \
-            --set image.tag=${{ github.sha }} \
+            --set image.tag="$IMAGE_TAG" \
             -n "$KUBE_NAMESPACE"
           kubectl rollout status deployment/tickets -n "$KUBE_NAMESPACE" --timeout=2m
 
       - name: Update Privileges deployment
+        if: steps.changes.outputs.privileges_deploy == 'true'
         run: |
+          IMAGE_TAG="latest"
+          if [ "${{ steps.changes.outputs.privileges_code }}" = "true" ]; then
+            IMAGE_TAG="${{ github.sha }}"
+          fi
           helm upgrade --install privileges ./charts/rsoi -f ./charts/rsoi/values-privileges.yaml \
-            --set image.tag=${{ github.sha }} \
+            --set image.tag="$IMAGE_TAG" \
             -n "$KUBE_NAMESPACE"
           kubectl rollout status deployment/privileges -n "$KUBE_NAMESPACE" --timeout=2m
 
       - name: Update Gateway deployment
+        if: steps.changes.outputs.gateway_deploy == 'true'
         run: |
+          IMAGE_TAG="latest"
+          if [ "${{ steps.changes.outputs.gateway_code }}" = "true" ]; then
+            IMAGE_TAG="${{ github.sha }}"
+          fi
           helm upgrade --install gateway ./charts/rsoi -f ./charts/rsoi/values-gateway.yaml \
-            --set image.tag=${{ github.sha }} \
+            --set image.tag="$IMAGE_TAG" \
             -n "$KUBE_NAMESPACE"
           kubectl rollout status deployment/gateway -n "$KUBE_NAMESPACE" --timeout=2m
 
       - name: Update Frontend deployment
+        if: steps.changes.outputs.frontend_deploy == 'true'
         run: |
+          IMAGE_TAG="latest"
+          if [ "${{ steps.changes.outputs.frontend_code }}" = "true" ]; then
+            IMAGE_TAG="${{ github.sha }}"
+          fi
           helm upgrade --install frontend ./charts/rsoi -f ./charts/rsoi/values-frontend.yaml \
-            --set image.tag=${{ github.sha }} \
+            --set image.tag="$IMAGE_TAG" \
             --set auth.issuerUri="${{ vars.VITE_OIDC_AUTHORITY }}" \
             -n "$KUBE_NAMESPACE"
           kubectl rollout status deployment/frontend -n "$KUBE_NAMESPACE" --timeout=2m

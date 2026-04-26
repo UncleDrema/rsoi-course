@@ -110,6 +110,10 @@ export function isAuthenticated(): boolean {
 
 export function getUserRoles(): string[] {
   const user = get(authUser);
+  return getRolesFromUser(user);
+}
+
+export function getRolesFromUser(user: User | null): string[] {
   const profile = (user?.profile ?? {}) as Record<string, unknown>;
   const roleClaims = [
     profile["role"],
@@ -129,6 +133,15 @@ export function getUserRoles(): string[] {
   });
 
   return Array.from(new Set(roles));
+}
+
+export function hasUserRole(user: User | null, role: string): boolean {
+  const expectedRole = normalizeRole(role);
+  return getRolesFromUser(user).some((currentRole) => normalizeRole(currentRole) === expectedRole);
+}
+
+function normalizeRole(role: string): string {
+  return role.replace(/^ROLE_/i, "").toUpperCase();
 }
 
 function normalizeError(error: unknown): string {

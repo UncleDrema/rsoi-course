@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { get } from "svelte/store";
   import AppShell from "./lib/components/AppShell.svelte";
-  import { authError, authReady, authUser, completeLogin, initAuth, isAuthenticated, logout } from "./lib/auth";
+  import { authError, authReady, authUser, completeLogin, hasUserRole, initAuth, isAuthenticated, logout } from "./lib/auth";
   import {
     buyTicket,
     cancelTicket,
@@ -95,6 +95,7 @@
   $: ready = $authReady;
   $: user = $authUser;
   $: sharedAuthError = $authError;
+  $: isAdmin = hasUserRole(user, "ADMIN");
 
   $: if (ready) {
     void handleRoute(currentRoute);
@@ -113,6 +114,11 @@
 
     if (protectedRoutes.includes(path) && !isAuthenticated()) {
       navigate("/login", true);
+      return;
+    }
+
+    if (path.startsWith("/admin/") && !isAdmin) {
+      navigate("/flights", true);
       return;
     }
 
@@ -329,7 +335,7 @@
 {:else if currentRoute === "/auth/callback"}
   <AuthCallbackPage error={callbackError} />
 {:else if user}
-  <AppShell currentPath={currentRoute} user={user} authError={sharedAuthError} on:navigate={handleNavigate} on:logout={handleLogout}>
+  <AppShell currentPath={currentRoute} user={user} authError={sharedAuthError} isAdmin={isAdmin} on:navigate={handleNavigate} on:logout={handleLogout}>
     {#if currentRoute === "/flights"}
       <FlightsPage
         pageData={flights}
@@ -351,7 +357,7 @@
       />
     {:else if currentRoute === "/profile"}
       <ProfilePage profile={profile} privilege={privilege} loading={profileLoading} error={profileError} />
-    {:else if currentRoute === "/admin/users"}
+    {:else if currentRoute === "/admin/users" && isAdmin}
       <AdminUsersPage
         users={adminUsers}
         loading={adminUsersLoading}
@@ -359,7 +365,7 @@
         error={adminUsersError}
         on:create={handleCreateUser}
       />
-    {:else if currentRoute === "/admin/flights"}
+    {:else if currentRoute === "/admin/flights" && isAdmin}
       <AdminFlightsPage
         airports={adminAirports}
         flights={adminFlights}
@@ -371,7 +377,7 @@
         on:createAirport={handleCreateAirport}
         on:createFlight={handleCreateFlight}
       />
-    {:else if currentRoute === "/admin/statistics"}
+    {:else if currentRoute === "/admin/statistics" && isAdmin}
       <AdminStatisticsPage
         report={statisticsReport}
         events={statisticEvents}

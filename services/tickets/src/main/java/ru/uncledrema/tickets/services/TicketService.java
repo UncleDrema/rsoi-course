@@ -68,13 +68,17 @@ public class TicketService {
         if (paidFromBalance) {
             bonusPaid = Math.min(userPrivilege.balance(), price);
             moneyPaid = price - bonusPaid;
-            privilegeClient.withdrawBonuses(username, ticketUid, bonusPaid);
+            if (bonusPaid > 0) {
+                privilegeClient.withdrawBonuses(username, ticketUid, bonusPaid);
+            }
         }
         else {
             moneyPaid = price;
             bonusPaid = 0;
             var bonusEarned = price * 10 / 100;
-            privilegeClient.depositBonuses(username, ticketUid, bonusEarned);
+            if (bonusEarned > 0) {
+                privilegeClient.depositBonuses(username, ticketUid, bonusEarned);
+            }
         }
 
         var finalPrivilege = privilegeClient.getPrivilegeForUser(username).orElseThrow();

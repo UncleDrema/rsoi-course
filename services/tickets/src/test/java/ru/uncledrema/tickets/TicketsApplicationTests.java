@@ -31,6 +31,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -111,6 +112,25 @@ class TicketsApplicationTests {
 
         assertEquals(flightNumber, dto.flightNumber());
         assertEquals(TicketStatus.PAID, dto.status());
+        verify(ticketEventPublisher).publish(any(ActionEvent.class));
+    }
+
+    @Test
+    void buyTicket_paidFromBalanceWithZeroBalance_skipsWithdraw() {
+        String username = "user";
+        String flightNumber = "FL123";
+        int price = 100;
+        var flight = new FlightDto(flightNumber, "A", "B", LocalDateTime.now(), price);
+        var privilege = new PrivilegeShortInfoDto(0, PrivilegeStatus.BRONZE);
+
+        when(flightClient.getFlight(flightNumber)).thenReturn(Optional.of(flight));
+        when(privilegeClient.getPrivilegeForUser(username)).thenReturn(Optional.of(privilege));
+        when(currentActorResolver.resolveCurrentActor()).thenReturn(new CurrentActor("sub-1", username, List.of("ROLE_USER")));
+
+        BoughtTicketDto dto = ticketService.buyTicket(flightNumber, price, true, username);
+
+        assertEquals(0, dto.paidByBonuses());
+        verify(privilegeClient, never()).withdrawBonuses(any(String.class), any(UUID.class), anyInt());
         verify(ticketEventPublisher).publish(any(ActionEvent.class));
     }
 

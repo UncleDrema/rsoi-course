@@ -6,20 +6,23 @@
   export let currentPath: RoutePath;
   export let user: User | null = null;
   export let authError: string | null = null;
+  export let isAdmin = false;
 
   const dispatch = createEventDispatcher<{
     navigate: RoutePath;
     logout: void;
   }>();
 
-  const links: Array<{ label: string; path: RoutePath }> = [
+  const links: Array<{ label: string; path: RoutePath; adminOnly?: boolean }> = [
     { label: "Flights", path: "/flights" },
     { label: "Tickets", path: "/tickets" },
     { label: "Profile", path: "/profile" },
-    { label: "Users", path: "/admin/users" },
-    { label: "Manage flights", path: "/admin/flights" },
-    { label: "Statistics", path: "/admin/statistics" }
+    { label: "Users", path: "/admin/users", adminOnly: true },
+    { label: "Manage flights", path: "/admin/flights", adminOnly: true },
+    { label: "Statistics", path: "/admin/statistics", adminOnly: true }
   ];
+
+  $: visibleLinks = links.filter((link) => !link.adminOnly || isAdmin);
 
   function triggerNavigate(path: RoutePath): void {
     dispatch("navigate", path);
@@ -37,7 +40,7 @@
     </div>
 
     <nav class="nav">
-      {#each links as link}
+      {#each visibleLinks as link}
         <button
           class:active={currentPath === link.path}
           class="nav-link"

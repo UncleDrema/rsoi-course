@@ -69,6 +69,20 @@ degradation:
           critical: false
           fallback: '{ "balance": 0, "status": null }'
           enqueue-on-failure: true
+    - path: "/api/v1/privilege/withdraw"
+      method: POST
+      services:
+        tickets:
+          critical: true
+        privileges:
+          critical: true
+    - path: "/api/v1/privilege/deposit"
+      method: POST
+      services:
+        tickets:
+          critical: true
+        privileges:
+          critical: true
     - path: "/api/v1/privilege"
       method: GET
       services:

@@ -95,14 +95,15 @@ public class Privilege {
     }
 
     public void cancel(UUID ticketUid) {
-        var ticketHistoryEntry = history.stream()
+        history.stream()
                 .filter(h -> h.getTicketUid().equals(ticketUid))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No history entry for ticket " + ticketUid));
-        switch (ticketHistoryEntry.getOperationType()) {
-            case DEBIT_THE_ACCOUNT -> deposit(ticketUid, ticketHistoryEntry.getBalanceDiff());
-            case FILL_IN_BALANCE -> withdraw(ticketUid, Math.min(ticketHistoryEntry.getBalanceDiff(), getBalance()));
-            default -> throw new IllegalStateException("Unknown operation type: " + ticketHistoryEntry.getOperationType());
-        }
+                .ifPresent(ticketHistoryEntry -> {
+                    switch (ticketHistoryEntry.getOperationType()) {
+                        case DEBIT_THE_ACCOUNT -> deposit(ticketUid, ticketHistoryEntry.getBalanceDiff());
+                        case FILL_IN_BALANCE -> withdraw(ticketUid, Math.min(ticketHistoryEntry.getBalanceDiff(), getBalance()));
+                        default -> throw new IllegalStateException("Unknown operation type: " + ticketHistoryEntry.getOperationType());
+                    }
+                });
     }
 }

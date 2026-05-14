@@ -65,8 +65,9 @@ public class TicketService {
         var ticketUid = UUID.randomUUID();
         int moneyPaid;
         int bonusPaid;
-        if (paidFromBalance) {
-            bonusPaid = Math.min(userPrivilege.balance(), price);
+        var userBalance = userPrivilege.balance();
+        if (paidFromBalance && userBalance > 0) {
+            bonusPaid = Math.min(userBalance, price);
             moneyPaid = price - bonusPaid;
             if (bonusPaid > 0) {
                 privilegeClient.withdrawBonuses(username, ticketUid, bonusPaid);

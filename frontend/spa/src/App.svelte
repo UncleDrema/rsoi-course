@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { get } from "svelte/store";
   import AppShell from "./lib/components/AppShell.svelte";
   import { authError, authReady, authUser, completeLogin, hasUserRole, initAuth, isAuthenticated, logout } from "./lib/auth";
   import {
@@ -25,10 +24,11 @@
     Airport,
     CreateAirportInput,
     CreateFlightInput,
-    PageDto,
     Flight,
+    PageDto,
     PrivilegeInfo,
     StatisticEvent,
+    StatisticsEventsQuery,
     StatisticsReport,
     Ticket,
     UserInfo
@@ -41,6 +41,20 @@
   import AdminUsersPage from "./routes/AdminUsersPage.svelte";
   import AdminFlightsPage from "./routes/AdminFlightsPage.svelte";
   import AdminStatisticsPage from "./routes/AdminStatisticsPage.svelte";
+
+  const initialStatisticsFilters: StatisticsEventsQuery = {
+    from: "",
+    to: "",
+    eventType: "",
+    service: "",
+    actorSub: "",
+    actorUsername: "",
+    entityType: "",
+    entityId: "",
+    query: "",
+    page: 1,
+    pageSize: 10
+  };
 
   let flights: PageDto<Flight> | null = null;
   let flightPage = 1;
@@ -72,7 +86,8 @@
   let adminFlightsError: string | null = null;
 
   let statisticsReport: StatisticsReport | null = null;
-  let statisticEvents: StatisticEvent[] = [];
+  let statisticEventsPage: PageDto<StatisticEvent> | null = null;
+  let statisticsFilters: StatisticsEventsQuery = { ...initialStatisticsFilters };
   let statisticsLoading = false;
   let statisticsError: string | null = null;
 
@@ -164,7 +179,7 @@
       callbackError = null;
       navigate((returnPath as RoutePath) || "/flights", true);
     } catch (error) {
-      callbackError = error instanceof Error ? error.message : "Sign-in callback failed.";
+      callbackError = error instanceof Error ? error.message : "Не удалось завершить вход.";
     }
   }
 
@@ -175,7 +190,7 @@
       flights = await getFlights(page);
       flightPage = flights.page;
     } catch (error) {
-      flightsError = error instanceof Error ? error.message : "Unable to load flights.";
+      flightsError = error instanceof Error ? error.message : "Не удалось загрузить рейсы.";
     } finally {
       flightsLoading = false;
     }
@@ -187,7 +202,7 @@
     try {
       tickets = await getTickets();
     } catch (error) {
-      ticketsError = error instanceof Error ? error.message : "Unable to load tickets.";
+      ticketsError = error instanceof Error ? error.message : "Не удалось загрузить билеты.";
     } finally {
       ticketsLoading = false;
     }
@@ -201,7 +216,7 @@
       profile = profileData;
       privilege = privilegeData;
     } catch (error) {
-      profileError = error instanceof Error ? error.message : "Unable to load profile.";
+      profileError = error instanceof Error ? error.message : "Не удалось загрузить профиль.";
     } finally {
       profileLoading = false;
     }
@@ -213,7 +228,7 @@
     try {
       adminUsers = await getAdminUsers();
     } catch (error) {
-      adminUsersError = error instanceof Error ? error.message : "Unable to load users.";
+      adminUsersError = error instanceof Error ? error.message : "Не удалось загрузить пользователей.";
     } finally {
       adminUsersLoading = false;
     }
@@ -227,21 +242,30 @@
       adminAirports = airports.items;
       adminFlights = flightPageData.items;
     } catch (error) {
-      adminFlightsError = error instanceof Error ? error.message : "Unable to load flight administration data.";
+      adminFlightsError = error instanceof Error ? error.message : "Не удалось загрузить данные по рейсам.";
     } finally {
       adminFlightsLoading = false;
     }
   }
 
-  async function loadStatistics(): Promise<void> {
+  async function loadStatistics(query: Partial<StatisticsEventsQuery> = {}): Promise<void> {
+    const nextQuery: StatisticsEventsQuery = {
+      ...statisticsFilters,
+      ...query
+    };
+
     statisticsLoading = true;
     statisticsError = null;
     try {
-      const [report, events] = await Promise.all([getStatisticsReport(), getStatisticEvents()]);
+      const [report, events] = await Promise.all([
+        getStatisticsReport({ from: nextQuery.from || undefined, to: nextQuery.to || undefined }),
+        getStatisticEvents(nextQuery)
+      ]);
+      statisticsFilters = nextQuery;
       statisticsReport = report;
-      statisticEvents = events;
+      statisticEventsPage = events;
     } catch (error) {
-      statisticsError = error instanceof Error ? error.message : "Unable to load statistics.";
+      statisticsError = error instanceof Error ? error.message : "Не удалось загрузить статистику.";
     } finally {
       statisticsLoading = false;
     }
@@ -255,7 +279,7 @@
       await Promise.all([loadTickets(), loadProfile()]);
       navigate("/tickets");
     } catch (error) {
-      flightsError = error instanceof Error ? error.message : "Unable to buy ticket.";
+      flightsError = error instanceof Error ? error.message : "Не удалось купить билет.";
     } finally {
       buyingFlight = "";
     }
@@ -268,7 +292,7 @@
       await cancelTicket(event.detail);
       await Promise.all([loadTickets(), loadProfile()]);
     } catch (error) {
-      ticketsError = error instanceof Error ? error.message : "Unable to cancel ticket.";
+      ticketsError = error instanceof Error ? error.message : "Не удалось отменить билет.";
     } finally {
       cancelingTicket = "";
     }
@@ -281,7 +305,7 @@
       const created = await createAdminUser(event.detail);
       adminUsers = [created, ...adminUsers];
     } catch (error) {
-      adminUsersError = error instanceof Error ? error.message : "Unable to create user.";
+      adminUsersError = error instanceof Error ? error.message : "Не удалось создать пользователя.";
     } finally {
       adminUsersSaving = false;
     }
@@ -294,7 +318,7 @@
       const created = await createAirport(event.detail);
       adminAirports = [created, ...adminAirports];
     } catch (error) {
-      adminFlightsError = error instanceof Error ? error.message : "Unable to create airport.";
+      adminFlightsError = error instanceof Error ? error.message : "Не удалось создать аэропорт.";
     } finally {
       airportSaving = false;
     }
@@ -308,10 +332,22 @@
       adminFlights = [created, ...adminFlights];
       flights = null;
     } catch (error) {
-      adminFlightsError = error instanceof Error ? error.message : "Unable to create flight.";
+      adminFlightsError = error instanceof Error ? error.message : "Не удалось создать рейс.";
     } finally {
       flightSaving = false;
     }
+  }
+
+  function handleStatisticsApply(event: CustomEvent<Partial<StatisticsEventsQuery>>): Promise<void> {
+    return loadStatistics({ ...event.detail, page: 1 });
+  }
+
+  function handleStatisticsReset(): Promise<void> {
+    return loadStatistics({ ...initialStatisticsFilters });
+  }
+
+  function handleStatisticsPageChange(event: CustomEvent<number>): Promise<void> {
+    return loadStatistics({ page: event.detail });
   }
 
   function handleNavigate(event: CustomEvent<RoutePath>): void {
@@ -326,8 +362,8 @@
 {#if !ready}
   <section class="center-state">
     <div class="state-card">
-      <h1>Loading session</h1>
-      <p>Checking the current OIDC session.</p>
+      <h1>Загрузка сессии</h1>
+      <p>Проверяем текущую авторизацию.</p>
     </div>
   </section>
 {:else if currentRoute === "/login" && !user}
@@ -380,9 +416,13 @@
     {:else if currentRoute === "/admin/statistics" && isAdmin}
       <AdminStatisticsPage
         report={statisticsReport}
-        events={statisticEvents}
+        eventsPage={statisticEventsPage}
+        filters={statisticsFilters}
         loading={statisticsLoading}
         error={statisticsError}
+        on:applyFilters={handleStatisticsApply}
+        on:resetFilters={handleStatisticsReset}
+        on:pageChange={handleStatisticsPageChange}
       />
     {/if}
   </AppShell>

@@ -14,12 +14,12 @@
   }>();
 
   const links: Array<{ label: string; path: RoutePath; adminOnly?: boolean }> = [
-    { label: "Flights", path: "/flights" },
-    { label: "Tickets", path: "/tickets" },
-    { label: "Profile", path: "/profile" },
-    { label: "Users", path: "/admin/users", adminOnly: true },
-    { label: "Manage flights", path: "/admin/flights", adminOnly: true },
-    { label: "Statistics", path: "/admin/statistics", adminOnly: true }
+    { label: "Рейсы", path: "/flights" },
+    { label: "Билеты", path: "/tickets" },
+    { label: "Профиль", path: "/profile" },
+    { label: "Пользователи", path: "/admin/users", adminOnly: true },
+    { label: "Управление рейсами", path: "/admin/flights", adminOnly: true },
+    { label: "Статистика", path: "/admin/statistics", adminOnly: true }
   ];
 
   $: visibleLinks = links.filter((link) => !link.adminOnly || isAdmin);
@@ -34,8 +34,8 @@
     <div class="brand">
       <span class="brand-mark">RS</span>
       <div>
-        <strong>RSOI Operations</strong>
-        <div class="muted">Flight booking control</div>
+        <strong>RSOI</strong>
+        <div class="muted">Управление авиабронированием</div>
       </div>
     </div>
 
@@ -54,11 +54,11 @@
 
     <div class="sidebar-footer">
       <div class="user-block">
-        <div class="muted">Signed in</div>
-        <strong>{user?.profile.name ?? user?.profile.email ?? "Unknown user"}</strong>
+        <div class="muted">Вы вошли как</div>
+        <strong>{user?.profile.name ?? user?.profile.email ?? "Неизвестный пользователь"}</strong>
       </div>
       <button class="secondary-button" type="button" on:click={() => dispatch("logout")}>
-        Sign out
+        Выйти
       </button>
     </div>
   </aside>

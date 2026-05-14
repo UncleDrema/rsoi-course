@@ -10,6 +10,7 @@ public record StatisticsEventFilters(
         String actorSub,
         String actorUsername,
         String entityType,
-        String entityId
+        String entityId,
+        String query
 ) {
 }

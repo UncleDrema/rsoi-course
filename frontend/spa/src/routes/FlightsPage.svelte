@@ -17,14 +17,13 @@
 
   $: currentPage = pageData?.page ?? 1;
   $: totalItems = pageData?.totalElements ?? 0;
-  $: pageSize = pageData?.pageSize ?? 12;
-  $: totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  $: totalPages = pageData?.totalPages ?? 1;
 </script>
 
 <section class="page-header">
   <div>
-    <div class="eyebrow">Catalog</div>
-    <h1>Flights</h1>
+    <div class="eyebrow">Каталог</div>
+    <h1>Рейсы</h1>
   </div>
   <label class="toggle">
     <input
@@ -32,7 +31,7 @@
       checked={payFromBalance}
       on:change={(event) => dispatch("payModeChange", (event.currentTarget as HTMLInputElement).checked)}
     />
-    <span>Pay from balance when available</span>
+    <span>Списывать бонусы, если они доступны</span>
   </label>
 </section>
 
@@ -44,22 +43,22 @@
   <div class="panel-toolbar">
     <div>
       <strong>{formatNumber(totalItems)}</strong>
-      <span class="muted"> available flights</span>
+      <span class="muted"> доступно рейсов</span>
     </div>
     <div class="pager">
       <button class="secondary-button" type="button" disabled={currentPage <= 1 || loading} on:click={() => dispatch("pageChange", currentPage - 1)}>
-        Previous
+        Назад
       </button>
-      <span>Page {currentPage} / {totalPages}</span>
+      <span>Страница {currentPage} из {totalPages}</span>
       <button class="secondary-button" type="button" disabled={currentPage >= totalPages || loading} on:click={() => dispatch("pageChange", currentPage + 1)}>
-        Next
+        Вперед
       </button>
     </div>
   </div>
 
   <div class="cards-grid">
     {#if loading && !pageData}
-      <div class="empty-state">Loading flights...</div>
+      <div class="empty-state">Загружаем рейсы...</div>
     {:else if pageData?.items.length}
       {#each pageData.items as flight}
         <article class="flight-card">
@@ -69,7 +68,7 @@
           </div>
           <div class="route-line">
             <div>{flight.fromAirport}</div>
-            <div class="route-arrow">to</div>
+            <div class="route-arrow">куда</div>
             <div>{flight.toAirport}</div>
           </div>
           <div class="flight-footer">
@@ -85,13 +84,13 @@
                   paidFromBalance: payFromBalance
                 })}
             >
-              {buyingFlight === flight.flightNumber ? "Buying..." : "Buy"}
+              {buyingFlight === flight.flightNumber ? "Покупаем..." : "Купить"}
             </button>
           </div>
         </article>
       {/each}
     {:else}
-      <div class="empty-state">No flights returned by the gateway.</div>
+      <div class="empty-state">Шлюз не вернул ни одного рейса.</div>
     {/if}
   </div>
 </section>

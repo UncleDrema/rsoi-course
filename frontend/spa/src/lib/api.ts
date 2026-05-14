@@ -5,6 +5,7 @@ import type {
   AdminUser,
   Airport,
   ApiErrorPayload,
+  ApiScalar,
   BoughtTicket,
   CreateAirportInput,
   CreateFlightInput,
@@ -12,6 +13,9 @@ import type {
   PageDto,
   PrivilegeInfo,
   StatisticEvent,
+  StatisticMetadataRecord,
+  StatisticsEventsQuery,
+  StatisticsFilters,
   StatisticsReport,
   Ticket,
   UserInfo
@@ -37,7 +41,7 @@ async function apiFetch<T>(input: string, init?: RequestInit, absolute = false):
 
   if (!response.ok) {
     const payload = await parseJson<ApiErrorPayload>(response);
-    throw new Error(payload?.message ?? payload?.error ?? `Request failed with ${response.status}`);
+    throw new Error(payload?.message ?? payload?.error ?? `Ошибка запроса: ${response.status}`);
   }
 
   if (response.status === 204) {
@@ -55,12 +59,232 @@ async function parseJson<T>(response: Response): Promise<T | null> {
   return JSON.parse(text) as T;
 }
 
+type JsonObject = Record<string, ApiScalar | ApiScalar[] | Record<string, ApiScalar>>;
+
+interface PageDtoResponse<T> {
+  page: number;
+  pageSize?: number;
+  size?: number;
+  totalElements: number;
+  totalPages?: number;
+  hasNext?: boolean;
+  hasPrevious?: boolean;
+  items: T[];
+}
+
+interface StatisticEventResponse {
+  eventId: string;
+  eventType: string;
+  service: string;
+  actorSub?: string | null;
+  actorUsername?: string | null;
+  actorRoles?: string[] | null;
+  entityType: string;
+  entityId: string;
+  metadata?: JsonObject | null;
+  occurredAt: string;
+}
+
+interface StatisticsReportResponse {
+  from?: string | null;
+  to?: string | null;
+  totalEvents?: number;
+  ticketsPurchased?: number;
+  ticketsCanceled?: number;
+  flightsCreated?: number;
+  airportsCreated?: number;
+  privilegeDeposited?: number;
+  privilegeWithdrawn?: number;
+  privilegeCompensated?: number;
+  countsByEventType?: Record<string, number> | null;
+  countsByService?: Record<string, number> | null;
+  recentEvents?: StatisticEventResponse[] | null;
+}
+
+function buildQueryString(params: Record<string, string | number | null | undefined>): string {
+  const search = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value == null || value === "") {
+      continue;
+    }
+    search.set(key, String(value));
+  }
+
+  const query = search.toString();
+  return query ? `?${query}` : "";
+}
+
+function adaptPageDto<T>(page: PageDtoResponse<T>): PageDto<T> {
+  const pageSize = page.pageSize ?? page.size ?? page.items.length;
+  const totalPages = page.totalPages ?? Math.max(1, Math.ceil(page.totalElements / Math.max(pageSize, 1)));
+
+  return {
+    page: page.page,
+    pageSize,
+    totalElements: page.totalElements,
+    totalPages,
+    hasNext: page.hasNext ?? page.page < totalPages,
+    hasPrevious: page.hasPrevious ?? page.page > 1,
+    items: page.items
+  };
+}
+
+function toScalarMetadataRecord(value: JsonObject | null | undefined): StatisticMetadataRecord {
+  if (!value) {
+    return {};
+  }
+
+  const normalized: StatisticMetadataRecord = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (entry == null || typeof entry === "string" || typeof entry === "number" || typeof entry === "boolean") {
+      normalized[key] = entry;
+      continue;
+    }
+
+    if (Array.isArray(entry)) {
+      normalized[key] = entry.map((item) => String(item)).join(", ");
+      continue;
+    }
+
+    normalized[key] = JSON.stringify(entry);
+  }
+  return normalized;
+}
+
+function readString(record: StatisticMetadataRecord, key: string, fallback = ""): string {
+  const value = record[key];
+  return typeof value === "string" ? value : fallback;
+}
+
+function readNumber(record: StatisticMetadataRecord, key: string, fallback = 0): number {
+  const value = record[key];
+  return typeof value === "number" ? value : fallback;
+}
+
+function readBoolean(record: StatisticMetadataRecord, key: string, fallback = false): boolean {
+  const value = record[key];
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function adaptStatisticEvent(event: StatisticEventResponse): StatisticEvent {
+  const metadata = toScalarMetadataRecord(event.metadata);
+  const base = {
+    eventId: event.eventId,
+    eventType: event.eventType,
+    service: event.service,
+    actorSub: event.actorSub ?? null,
+    actorUsername: event.actorUsername ?? null,
+    actorRoles: Array.isArray(event.actorRoles) ? event.actorRoles.filter((role): role is string => typeof role === "string") : [],
+    entityType: event.entityType,
+    entityId: event.entityId,
+    occurredAt: event.occurredAt
+  };
+
+  switch (event.eventType) {
+    case "FLIGHTS_VIEWED":
+      return {
+        ...base,
+        eventType: "FLIGHTS_VIEWED",
+        metadata: {
+          ...metadata,
+          page: readNumber(metadata, "page"),
+          size: readNumber(metadata, "size"),
+          totalElements: readNumber(metadata, "totalElements")
+        }
+      };
+    case "FLIGHT_VIEWED":
+      return { ...base, eventType: "FLIGHT_VIEWED", metadata: { ...metadata, flightNumber: readString(metadata, "flightNumber") } };
+    case "FLIGHT_CREATED":
+      return {
+        ...base,
+        eventType: "FLIGHT_CREATED",
+        metadata: {
+          ...metadata,
+          flightNumber: readString(metadata, "flightNumber"),
+          fromAirportId: readNumber(metadata, "fromAirportId"),
+          toAirportId: readNumber(metadata, "toAirportId"),
+          price: readNumber(metadata, "price")
+        }
+      };
+    case "AIRPORT_CREATED":
+      return {
+        ...base,
+        eventType: "AIRPORT_CREATED",
+        metadata: {
+          ...metadata,
+          name: readString(metadata, "name"),
+          city: readString(metadata, "city"),
+          country: readString(metadata, "country")
+        }
+      };
+    case "TICKET_PURCHASED":
+      return {
+        ...base,
+        eventType: "TICKET_PURCHASED",
+        metadata: {
+          ...metadata,
+          flightNumber: readString(metadata, "flightNumber"),
+          price: readNumber(metadata, "price"),
+          paidFromBalance: readBoolean(metadata, "paidFromBalance"),
+          paidByMoney: readNumber(metadata, "paidByMoney"),
+          paidByBonuses: readNumber(metadata, "paidByBonuses"),
+          privilegeBalance: readNumber(metadata, "privilegeBalance"),
+          privilegeStatus: readString(metadata, "privilegeStatus")
+        }
+      };
+    case "TICKET_CANCELED":
+      return {
+        ...base,
+        eventType: "TICKET_CANCELED",
+        metadata: {
+          ...metadata,
+          flightNumber: readString(metadata, "flightNumber"),
+          price: readNumber(metadata, "price"),
+          status: readString(metadata, "status"),
+          privilegeBalance: readNumber(metadata, "privilegeBalance"),
+          privilegeStatus: readString(metadata, "privilegeStatus")
+        }
+      };
+    case "PRIVILEGE_WITHDRAWN":
+      return { ...base, eventType: "PRIVILEGE_WITHDRAWN", metadata };
+    case "PRIVILEGE_DEPOSITED":
+      return { ...base, eventType: "PRIVILEGE_DEPOSITED", metadata };
+    case "PRIVILEGE_COMPENSATED":
+      return { ...base, eventType: "PRIVILEGE_COMPENSATED", metadata };
+    case "TICKET_CREATED":
+      return { ...base, eventType: "TICKET_CREATED", metadata };
+    default:
+      return { ...base, metadata };
+  }
+}
+
+function adaptStatisticsReport(report: StatisticsReportResponse): StatisticsReport {
+  const countsByEventType = report.countsByEventType ?? {};
+
+  return {
+    from: report.from ?? null,
+    to: report.to ?? null,
+    totalEvents: report.totalEvents ?? 0,
+    ticketsPurchased: report.ticketsPurchased ?? countsByEventType.TICKET_PURCHASED ?? 0,
+    ticketsCanceled: report.ticketsCanceled ?? countsByEventType.TICKET_CANCELED ?? 0,
+    flightsCreated: report.flightsCreated ?? countsByEventType.FLIGHT_CREATED ?? 0,
+    airportsCreated: report.airportsCreated ?? countsByEventType.AIRPORT_CREATED ?? 0,
+    privilegeDeposited: report.privilegeDeposited ?? countsByEventType.PRIVILEGE_DEPOSITED ?? 0,
+    privilegeWithdrawn: report.privilegeWithdrawn ?? countsByEventType.PRIVILEGE_WITHDRAWN ?? 0,
+    privilegeCompensated: report.privilegeCompensated ?? countsByEventType.PRIVILEGE_COMPENSATED ?? 0,
+    countsByEventType,
+    countsByService: report.countsByService ?? {},
+    recentEvents: (report.recentEvents ?? []).map(adaptStatisticEvent)
+  };
+}
+
 export function getFlights(page = 1, size = 12): Promise<PageDto<Flight>> {
-  return apiFetch<PageDto<Flight>>(`/flights?page=${page}&size=${size}`);
+  return apiFetch<PageDtoResponse<Flight>>(`/flights${buildQueryString({ page, size })}`).then(adaptPageDto);
 }
 
 export function getAirports(page = 1, size = 100): Promise<PageDto<Airport>> {
-  return apiFetch<PageDto<Airport>>(`/airports?page=${page}&size=${size}`);
+  return apiFetch<PageDtoResponse<Airport>>(`/airports${buildQueryString({ page, size })}`).then(adaptPageDto);
 }
 
 export function createAirport(payload: CreateAirportInput): Promise<Airport> {
@@ -124,18 +348,38 @@ export function createAdminUser(payload: AdminCreateUserInput): Promise<AdminUse
   );
 }
 
-export function getStatisticsReport(): Promise<StatisticsReport> {
-  return apiFetch<StatisticsReport>(
-    resolveAdminUrl(env.adminReportPath),
+export function getStatisticsReport(filters?: StatisticsFilters): Promise<StatisticsReport> {
+  return apiFetch<StatisticsReportResponse>(
+    `${resolveAdminUrl(env.adminReportPath)}${buildQueryString({
+      from: filters?.from ?? undefined,
+      to: filters?.to ?? undefined
+    })}`,
     undefined,
     Boolean(env.adminBaseUrl)
-  );
+  ).then(adaptStatisticsReport);
 }
 
-export function getStatisticEvents(): Promise<StatisticEvent[]> {
-  return apiFetch<PageDto<StatisticEvent>>(
-    resolveAdminUrl(env.adminEventsPath),
+export function getStatisticEvents(query: StatisticsEventsQuery = {}): Promise<PageDto<StatisticEvent>> {
+  return apiFetch<PageDtoResponse<StatisticEventResponse>>(
+    `${resolveAdminUrl(env.adminEventsPath)}${buildQueryString({
+      from: query.from ?? undefined,
+      to: query.to ?? undefined,
+      eventType: query.eventType ?? undefined,
+      service: query.service ?? undefined,
+      actorSub: query.actorSub ?? undefined,
+      actorUsername: query.actorUsername ?? undefined,
+      entityType: query.entityType ?? undefined,
+      entityId: query.entityId ?? undefined,
+      query: query.query ?? undefined,
+      page: query.page ?? undefined,
+      size: query.pageSize ?? undefined
+    })}`,
     undefined,
     Boolean(env.adminBaseUrl)
-  ).then((page) => page.items);
+  ).then((page) =>
+    adaptPageDto({
+      ...page,
+      items: page.items.map(adaptStatisticEvent)
+    })
+  );
 }

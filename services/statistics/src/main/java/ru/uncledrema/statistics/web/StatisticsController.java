@@ -38,13 +38,14 @@ public class StatisticsController {
             @RequestParam(name = "actorUsername", required = false) String actorUsername,
             @RequestParam(name = "entityType", required = false) String entityType,
             @RequestParam(name = "entityId", required = false) String entityId,
+            @RequestParam(name = "query", required = false) String query,
             @RequestParam(name = "page", required = false, defaultValue = "1") int page,
             @RequestParam(name = "size", required = false, defaultValue = "20") int size
     ) {
         if (page < 1 || size < 1) {
             return ResponseEntity.badRequest().build();
         }
-        var filters = new StatisticsEventFilters(from, to, eventType, service, actorSub, actorUsername, entityType, entityId);
+        var filters = new StatisticsEventFilters(from, to, eventType, service, actorSub, actorUsername, entityType, entityId, query);
         return ResponseEntity.ok(statisticsQueryService.getEvents(filters, page, size));
     }
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
+  import { formatDateTime, formatMoney } from "../lib/format";
   import type { Airport, CreateAirportInput, CreateFlightInput, Flight } from "../lib/types";
 
   export let airports: Airport[] = [];
@@ -62,11 +63,11 @@
 
 <section class="page-header">
   <div>
-    <div class="eyebrow">Administration</div>
-    <h1>Flights</h1>
+    <div class="eyebrow">Администрирование</div>
+    <h1>Рейсы</h1>
   </div>
   <button class="secondary-button" type="button" disabled={loading} on:click={() => dispatch("refresh")}>
-    Refresh
+    Обновить
   </button>
 </section>
 
@@ -77,68 +78,68 @@
 <div class="admin-grid wide">
   <section class="panel">
     <div class="panel-header">
-      <h2>Create airport</h2>
+      <h2>Создать аэропорт</h2>
     </div>
     <form class="form-grid" on:submit|preventDefault={submitAirport}>
       <label>
-        <span>Name</span>
+        <span>Название</span>
         <input bind:value={airportForm.name} type="text" required />
       </label>
       <label>
-        <span>City</span>
+        <span>Город</span>
         <input bind:value={airportForm.city} type="text" required />
       </label>
       <label>
-        <span>Country</span>
+        <span>Страна</span>
         <input bind:value={airportForm.country} type="text" required />
       </label>
       <button class="primary-button" type="submit" disabled={savingAirport}>
-        {savingAirport ? "Creating..." : "Create airport"}
+        {savingAirport ? "Создаем..." : "Создать аэропорт"}
       </button>
     </form>
   </section>
 
   <section class="panel">
     <div class="panel-header">
-      <h2>Create flight</h2>
+      <h2>Создать рейс</h2>
     </div>
     <form class="form-grid" on:submit|preventDefault={submitFlight}>
       <label>
-        <span>Flight number</span>
+        <span>Номер рейса</span>
         <input bind:value={flightForm.flightNumber} type="text" required />
       </label>
       <label>
-        <span>Date</span>
+        <span>Дата</span>
         <input bind:value={flightForm.date} type="date" required />
       </label>
       <label>
-        <span>Time</span>
+        <span>Время</span>
         <input bind:value={flightForm.time} type="time" required />
       </label>
       <label>
-        <span>From airport</span>
+        <span>Аэропорт вылета</span>
         <select bind:value={flightForm.fromAirportId} required>
-          <option value="" disabled>Select airport</option>
+          <option value="" disabled>Выберите аэропорт</option>
           {#each airports as airport}
             <option value={String(airport.id)}>{airport.id} - {airport.city}, {airport.name}</option>
           {/each}
         </select>
       </label>
       <label>
-        <span>To airport</span>
+        <span>Аэропорт прилета</span>
         <select bind:value={flightForm.toAirportId} required>
-          <option value="" disabled>Select airport</option>
+          <option value="" disabled>Выберите аэропорт</option>
           {#each airports as airport}
             <option value={String(airport.id)}>{airport.id} - {airport.city}, {airport.name}</option>
           {/each}
         </select>
       </label>
       <label>
-        <span>Price</span>
+        <span>Цена</span>
         <input bind:value={flightForm.price} type="number" min="1" step="1" required />
       </label>
       <button class="primary-button" type="submit" disabled={savingFlight || airports.length < 2}>
-        {savingFlight ? "Creating..." : "Create flight"}
+        {savingFlight ? "Создаем..." : "Создать рейс"}
       </button>
     </form>
   </section>
@@ -147,19 +148,19 @@
 <div class="admin-grid wide">
   <section class="panel">
     <div class="panel-header">
-      <h2>Airports</h2>
+      <h2>Аэропорты</h2>
     </div>
     {#if loading && !airports.length}
-      <div class="empty-state">Loading airports...</div>
+      <div class="empty-state">Загружаем аэропорты...</div>
     {:else if airports.length}
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
               <th>ID</th>
-              <th>Name</th>
-              <th>City</th>
-              <th>Country</th>
+              <th>Название</th>
+              <th>Город</th>
+              <th>Страна</th>
             </tr>
           </thead>
           <tbody>
@@ -175,26 +176,26 @@
         </table>
       </div>
     {:else}
-      <div class="empty-state">No airports returned by the API.</div>
+      <div class="empty-state">API не вернул список аэропортов.</div>
     {/if}
   </section>
 
   <section class="panel">
     <div class="panel-header">
-      <h2>Recent flights</h2>
+      <h2>Последние рейсы</h2>
     </div>
     {#if loading && !flights.length}
-      <div class="empty-state">Loading flights...</div>
+      <div class="empty-state">Загружаем рейсы...</div>
     {:else if flights.length}
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Flight</th>
-              <th>From</th>
-              <th>To</th>
-              <th>Date</th>
-              <th>Price</th>
+              <th>Рейс</th>
+              <th>Откуда</th>
+              <th>Куда</th>
+              <th>Дата</th>
+              <th>Цена</th>
             </tr>
           </thead>
           <tbody>
@@ -203,15 +204,15 @@
                 <td>{flight.flightNumber}</td>
                 <td>{flight.fromAirport}</td>
                 <td>{flight.toAirport}</td>
-                <td>{flight.date}</td>
-                <td>{flight.price}</td>
+                <td>{formatDateTime(flight.date)}</td>
+                <td>{formatMoney(flight.price)}</td>
               </tr>
             {/each}
           </tbody>
         </table>
       </div>
     {:else}
-      <div class="empty-state">No flights returned by the API.</div>
+      <div class="empty-state">API не вернул список рейсов.</div>
     {/if}
   </section>
 </div>

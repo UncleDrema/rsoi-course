@@ -13,8 +13,8 @@
 
 <section class="page-header">
   <div>
-    <div class="eyebrow">Orders</div>
-    <h1>Tickets</h1>
+    <div class="eyebrow">Заказы</div>
+    <h1>Билеты</h1>
   </div>
 </section>
 
@@ -24,17 +24,17 @@
 
 <section class="panel">
   {#if loading}
-    <div class="empty-state">Loading tickets...</div>
+    <div class="empty-state">Загружаем билеты...</div>
   {:else if tickets.length}
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Flight</th>
-            <th>Route</th>
-            <th>Date</th>
-            <th>Price</th>
-            <th>Status</th>
+            <th>Рейс</th>
+            <th>Маршрут</th>
+            <th>Дата</th>
+            <th>Цена</th>
+            <th>Статус</th>
             <th></th>
           </tr>
         </thead>
@@ -42,7 +42,7 @@
           {#each tickets as ticket}
             <tr>
               <td>{ticket.flightNumber}</td>
-              <td>{ticket.fromAirport} to {ticket.toAirport}</td>
+              <td>{ticket.fromAirport} - {ticket.toAirport}</td>
               <td>{formatDateTime(ticket.date)}</td>
               <td>{formatMoney(ticket.price)}</td>
               <td><span class="badge">{titleCase(ticket.status)}</span></td>
@@ -53,7 +53,7 @@
                   disabled={cancelingTicket === ticket.ticketUid}
                   on:click={() => dispatch("cancel", ticket.ticketUid)}
                 >
-                  {cancelingTicket === ticket.ticketUid ? "Canceling..." : "Cancel"}
+                  {cancelingTicket === ticket.ticketUid ? "Отменяем..." : "Отменить"}
                 </button>
               </td>
             </tr>
@@ -62,6 +62,6 @@
       </table>
     </div>
   {:else}
-    <div class="empty-state">No tickets purchased yet.</div>
+    <div class="empty-state">У вас пока нет купленных билетов.</div>
   {/if}
 </section>

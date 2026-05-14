@@ -318,18 +318,38 @@ th {
   gap: 14px;
 }
 
+.statistics-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
 .form-grid label {
   display: grid;
   gap: 6px;
 }
 
+.statistics-filters label {
+  display: grid;
+  gap: 6px;
+}
+
 .form-grid input,
-.form-grid select {
+.form-grid select,
+.statistics-filters input,
+.statistics-filters select {
   min-height: 42px;
   border-radius: 8px;
   border: 1px solid #cad6e4;
   padding: 0 12px;
   background: #ffffff;
+}
+
+.filter-actions {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .key-value-list {
@@ -363,6 +383,50 @@ th {
   padding: 12px;
   display: grid;
   gap: 8px;
+}
+
+.summary-list {
+  display: grid;
+  gap: 10px;
+}
+
+.summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e6edf5;
+}
+
+.summary-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.events-table {
+  min-width: 980px;
+}
+
+.event-details {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.event-details div {
+  display: grid;
+  gap: 2px;
+}
+
+.event-details dt {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.event-details dd {
+  margin: 0;
+  word-break: break-word;
 }
 
 .event-index {
@@ -451,7 +515,8 @@ pre {
 
   .flight-meta,
   .flight-footer,
-  .panel-toolbar {
+  .panel-toolbar,
+  .filter-actions {
     align-items: stretch;
     flex-direction: column;
   }
@@ -459,5 +524,9 @@ pre {
   .pager {
     justify-content: space-between;
     width: 100%;
+  }
+
+  .statistics-filters {
+    grid-template-columns: 1fr;
   }
 }

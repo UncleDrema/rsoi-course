@@ -10,8 +10,8 @@
 
 <section class="page-header">
   <div>
-    <div class="eyebrow">Account</div>
-    <h1>Profile and privileges</h1>
+    <div class="eyebrow">Аккаунт</div>
+    <h1>Профиль и привилегии</h1>
   </div>
 </section>
 
@@ -21,34 +21,34 @@
 
 <div class="stats-grid">
   <section class="panel stat-panel">
-    <span class="metric-label">Tickets</span>
+    <span class="metric-label">Билеты</span>
     <strong class="metric-value">{formatNumber(profile?.tickets.length ?? 0)}</strong>
   </section>
   <section class="panel stat-panel">
-    <span class="metric-label">Balance</span>
+    <span class="metric-label">Баланс</span>
     <strong class="metric-value">{formatNumber(privilege?.balance ?? profile?.privilege?.balance ?? 0)}</strong>
   </section>
   <section class="panel stat-panel">
-    <span class="metric-label">Tier</span>
+    <span class="metric-label">Уровень</span>
     <strong class="metric-value">{titleCase(privilege?.status ?? profile?.privilege?.status ?? null)}</strong>
   </section>
 </div>
 
 <section class="panel">
   <div class="panel-header">
-    <h2>Loyalty activity</h2>
+    <h2>История бонусной программы</h2>
   </div>
   {#if loading}
-    <div class="empty-state">Loading profile...</div>
+    <div class="empty-state">Загружаем профиль...</div>
   {:else if privilege?.history?.length}
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Date</th>
-            <th>Ticket</th>
-            <th>Change</th>
-            <th>Operation</th>
+            <th>Дата</th>
+            <th>Билет</th>
+            <th>Изменение</th>
+            <th>Операция</th>
           </tr>
         </thead>
         <tbody>
@@ -64,6 +64,6 @@
       </table>
     </div>
   {:else}
-    <div class="empty-state">No privilege history available.</div>
+    <div class="empty-state">История бонусных операций пока пуста.</div>
   {/if}
 </section>

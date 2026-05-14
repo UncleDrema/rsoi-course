@@ -61,7 +61,6 @@
   let flightsLoading = false;
   let flightsError: string | null = null;
   let buyingFlight = "";
-  let payFromBalance = true;
 
   let tickets: Ticket[] = [];
   let ticketsLoading = false;
@@ -141,6 +140,9 @@
       case "/flights":
         if (!flights && !flightsLoading) {
           await loadFlights(flightPage);
+        }
+        if (!profile && !profileLoading) {
+          await loadProfile();
         }
         break;
       case "/tickets":
@@ -378,10 +380,9 @@
         loading={flightsLoading}
         buyingFlight={buyingFlight}
         error={flightsError}
-        payFromBalance={payFromBalance}
+        balance={privilege?.balance ?? profile?.privilege?.balance ?? 0}
         on:pageChange={(event) => loadFlights(event.detail)}
         on:buy={handleBuy}
-        on:payModeChange={(event) => (payFromBalance = event.detail)}
       />
     {:else if currentRoute === "/tickets"}
       <TicketsPage

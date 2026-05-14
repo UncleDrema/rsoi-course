@@ -7,17 +7,50 @@
   export let loading = false;
   export let buyingFlight = "";
   export let error: string | null = null;
-  export let payFromBalance = true;
+  export let balance = 0;
 
   const dispatch = createEventDispatcher<{
     pageChange: number;
     buy: { flightNumber: string; price: number; paidFromBalance: boolean };
-    payModeChange: boolean;
   }>();
+
+  let selectedFlight: Flight | null = null;
+  let payFromBalance = false;
 
   $: currentPage = pageData?.page ?? 1;
   $: totalItems = pageData?.totalElements ?? 0;
   $: totalPages = pageData?.totalPages ?? 1;
+  $: availableBalance = Math.max(balance, 0);
+  $: bonusPayment = selectedFlight && payFromBalance ? Math.min(availableBalance, selectedFlight.price) : 0;
+  $: finalPrice = selectedFlight ? Math.max(selectedFlight.price - bonusPayment, 0) : 0;
+
+  function openPurchase(flight: Flight): void {
+    selectedFlight = flight;
+    payFromBalance = availableBalance > 0;
+  }
+
+  function closePurchase(): void {
+    selectedFlight = null;
+    payFromBalance = false;
+  }
+
+  function confirmPurchase(): void {
+    if (!selectedFlight) {
+      return;
+    }
+
+    dispatch("buy", {
+      flightNumber: selectedFlight.flightNumber,
+      price: selectedFlight.price,
+      paidFromBalance: payFromBalance && availableBalance > 0
+    });
+  }
+
+  function closePurchaseFromBackdrop(event: MouseEvent): void {
+    if (event.target === event.currentTarget) {
+      closePurchase();
+    }
+  }
 </script>
 
 <section class="page-header">
@@ -25,14 +58,6 @@
     <div class="eyebrow">Каталог</div>
     <h1>Рейсы</h1>
   </div>
-  <label class="toggle">
-    <input
-      type="checkbox"
-      checked={payFromBalance}
-      on:change={(event) => dispatch("payModeChange", (event.currentTarget as HTMLInputElement).checked)}
-    />
-    <span>Списывать бонусы, если они доступны</span>
-  </label>
 </section>
 
 {#if error}
@@ -77,12 +102,7 @@
               class="primary-button"
               type="button"
               disabled={buyingFlight === flight.flightNumber}
-              on:click={() =>
-                dispatch("buy", {
-                  flightNumber: flight.flightNumber,
-                  price: flight.price,
-                  paidFromBalance: payFromBalance
-                })}
+              on:click={() => openPurchase(flight)}
             >
               {buyingFlight === flight.flightNumber ? "Покупаем..." : "Купить"}
             </button>
@@ -94,3 +114,59 @@
     {/if}
   </div>
 </section>
+
+{#if selectedFlight}
+  <div class="modal-backdrop" role="presentation" on:click={closePurchaseFromBackdrop}>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="purchase-title">
+      <div class="panel-header">
+        <div>
+          <div class="eyebrow">Покупка билета</div>
+          <h2 id="purchase-title">Рейс {selectedFlight.flightNumber}</h2>
+        </div>
+        <button class="icon-button" type="button" aria-label="Закрыть" on:click={closePurchase}>x</button>
+      </div>
+
+      <div class="purchase-summary">
+        <div>
+          <span class="metric-label">Маршрут</span>
+          <strong>{selectedFlight.fromAirport} - {selectedFlight.toAirport}</strong>
+        </div>
+        <div>
+          <span class="metric-label">Дата</span>
+          <strong>{formatDateTime(selectedFlight.date)}</strong>
+        </div>
+        <div>
+          <span class="metric-label">Баланс бонусов</span>
+          <strong>{formatNumber(availableBalance)}</strong>
+        </div>
+      </div>
+
+      {#if availableBalance > 0}
+        <label class="switch-row">
+          <span>
+            <strong>Оплатить бонусами</strong>
+            <span class="muted">Будет списано {formatNumber(bonusPayment)} бонусов</span>
+          </span>
+          <input type="checkbox" bind:checked={payFromBalance} />
+          <span class="switch-track"></span>
+        </label>
+      {:else}
+        <div class="empty-state compact">На балансе нет бонусов для списания.</div>
+      {/if}
+
+      <div class="price-preview">
+        {#if bonusPayment > 0}
+          <span class="old-price">{formatMoney(selectedFlight.price)}</span>
+        {/if}
+        <strong>{formatMoney(finalPrice)}</strong>
+      </div>
+
+      <div class="modal-actions">
+        <button class="secondary-button" type="button" on:click={closePurchase}>Отмена</button>
+        <button class="primary-button" type="button" disabled={buyingFlight === selectedFlight.flightNumber} on:click={confirmPurchase}>
+          {buyingFlight === selectedFlight.flightNumber ? "Покупаем..." : "Подтвердить покупку"}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

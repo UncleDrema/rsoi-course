@@ -9,6 +9,10 @@
   export let error: string | null = null;
 
   const dispatch = createEventDispatcher<{ cancel: string }>();
+
+  function canCancel(ticket: Ticket): boolean {
+    return ticket.status.toUpperCase() === "PAID";
+  }
 </script>
 
 <section class="page-header">
@@ -35,7 +39,7 @@
             <th>Дата</th>
             <th>Цена</th>
             <th>Статус</th>
-            <th></th>
+            <th>Действие</th>
           </tr>
         </thead>
         <tbody>
@@ -47,14 +51,18 @@
               <td>{formatMoney(ticket.price)}</td>
               <td><span class="badge">{titleCase(ticket.status)}</span></td>
               <td class="table-action">
-                <button
-                  class="secondary-button"
-                  type="button"
-                  disabled={cancelingTicket === ticket.ticketUid}
-                  on:click={() => dispatch("cancel", ticket.ticketUid)}
-                >
-                  {cancelingTicket === ticket.ticketUid ? "Отменяем..." : "Отменить"}
-                </button>
+                {#if canCancel(ticket)}
+                  <button
+                    class="secondary-button"
+                    type="button"
+                    disabled={cancelingTicket === ticket.ticketUid}
+                    on:click={() => dispatch("cancel", ticket.ticketUid)}
+                  >
+                    {cancelingTicket === ticket.ticketUid ? "Отменяем..." : "Отменить"}
+                  </button>
+                {:else}
+                  <span class="muted">Недоступно</span>
+                {/if}
               </td>
             </tr>
           {/each}
